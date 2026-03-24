@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  name            String
+  email           String    @unique
+  passwordHash    String
+  role            String    @default("user")
+  termsAccepted   Boolean   @default(false)
+  termsAcceptedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tokens          Token[]
+  announcements   Announcement[]
+}
+
+model Token {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Announcement {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plantName       String
+  category        String
+  size            String
+  condition       String
+  careLevel       String
+  city            String
+  district        String?
+  description     String?
+  additionalTags  String[] @default([])
+  pestFree        Boolean?
+  readyToExchange Boolean?
+  genus           String
+  family          String
+  commonName      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

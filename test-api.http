@@ -1,0 +1,53 @@
+### REST Client Test File
+# To use this, install the "REST Client" extension in VS Code.
+# You will see a "Send Request" button above each endpoint.
+
+@baseUrl = http://localhost:3000
+
+### 1. Register a new user
+# @name registerUser
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "John Doe",
+  "email": "test@example.com",
+  "password": "password123",
+  "confirmPassword": "password123"
+}
+
+
+### 2. Login with the created user
+# @name loginUser
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+
+### 3. Access a protected route
+# You need to copy the token from the login response and paste it below
+# Or if you use the REST Client, it automatically extracts the token!
+@authToken = {{loginUser.response.body.token}}
+
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{authToken}}
+
+
+### 4. Get User by ID (Public)
+# Replace user_id_here with an actual ID from the register/login response
+@userId = {{loginUser.response.body.user.id}}
+GET {{baseUrl}}/users/{{userId}}
+
+
+### 5. Test Validation Error (Password too short)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "invalid-email",
+  "password": "123"
+}
