@@ -2,8 +2,12 @@ import { z } from 'zod';
 
 export const plantSearchSchema = z.object({
   query: z.object({
-    commonName: z.string({ message: 'commonName is required' }).min(1, 'commonName is required'),
+    commonName: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
   }),
+}).refine((data) => Boolean(data.query.commonName || data.query.name), {
+  message: 'commonName or name is required',
+  path: ['query'],
 });
 
 const plantIdentifyBodySchema = z.object({

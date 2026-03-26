@@ -3,15 +3,23 @@ import * as plantService from '../services/plant.service.js';
 
 export const searchPlants = async (req: Request, res: Response): Promise<void> => {
   try {
-    const commonName = req.query.commonName as string;
+    const commonName = (req.query.commonName as string) || (req.query.name as string);
     const result = await plantService.searchPlantsByCommonName(commonName);
-    res.status(200).json({ success: true, ...result });
+    const primary = result.data[0] ?? null;
+    const suggestions = result.data.slice(1, 4);
+    res.status(200).json({ success: true, primary, suggestions, ...result });
   } catch (error: any) {
-    if (error.message === 'TREFLE_TOKEN is not set') {
+    if (error.message === 'PLANTNET_API_KEY is not set') {
       res.status(500).json({ success: false, message: 'Server misconfiguration' });
       return;
     }
-    res.status(502).json({ success: false, message: 'Upstream error' });
+    const status = typeof error?.status === 'number' ? error.status : 502;
+    const details = typeof error?.body === 'string' ? error.body : undefined;
+    res.status(status).json({
+      success: false,
+      message: error?.message || 'Upstream error',
+      ...(details ? { details } : {}),
+    });
   }
 };
 

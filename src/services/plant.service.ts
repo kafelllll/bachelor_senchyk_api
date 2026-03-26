@@ -1,5 +1,9 @@
-type TreflePlantItem = {
-  id: number;
+import { fetch as undiciFetch } from 'undici';
+
+const httpFetch: typeof fetch = globalThis.fetch ?? undiciFetch;
+
+type PlantNetPlantItem = {
+  id: number | string;
   common_name: string | null;
   scientific_name: string | null;
   genus: string | null;
@@ -7,14 +11,14 @@ type TreflePlantItem = {
   image_url: string | null;
 };
 
-type TreflePlantSearchResult = {
-  data: TreflePlantItem[];
+type PlantNetPlantSearchResult = {
+  data: PlantNetPlantItem[];
   links?: Record<string, unknown>;
   meta?: Record<string, unknown>;
 };
 
 type CacheEntry = {
-  value: TreflePlantSearchResult;
+  value: PlantNetPlantSearchResult;
   expiresAt: number;
 };
 
@@ -48,16 +52,60 @@ export class PlantIdRequestError extends Error {
   }
 }
 
+export class PlantNetRequestError extends Error {
+  status: number;
+  body: string;
+
+  constructor(status: number, body: string) {
+    super('PlantNet request failed');
+    this.status = status;
+    this.body = body;
+  }
+}
+
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-const getTrefleConfig = () => {
-  const token = process.env.TREFLE_TOKEN;
-  if (!token) {
-    throw new Error('TREFLE_TOKEN is not set');
+const commonNameAliases: Record<string, string> = {
+  'snake plant': 'dracaena trifasciata',
+  'mother-in-law\'s tongue': 'dracaena trifasciata',
+  'sansevieria': 'dracaena trifasciata',
+};
+
+const transliterateUkToLatin = (value: string): string => {
+  const map: Record<string, string> = {
+    а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ye', ж: 'zh', з: 'z', и: 'y',
+    і: 'i', ї: 'yi', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r',
+    с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch',
+    ь: '', ю: 'yu', я: 'ya',
+  };
+
+  return value
+    .trim()
+    .split('')
+    .map((char) => {
+      const lower = char.toLowerCase();
+      const mapped = map[lower];
+      if (!mapped) {
+        return char;
+      }
+      return char === lower ? mapped : mapped.charAt(0).toUpperCase() + mapped.slice(1);
+    })
+    .join('');
+};
+
+const getPlantNetConfig = () => {
+  const apiKey = process.env.PLANTNET_API_KEY;
+  if (!apiKey) {
+    throw new Error('PLANTNET_API_KEY is not set');
   }
-  const baseUrl = process.env.TREFLE_BASE_URL || 'https://trefle.io/api/v1/plants';
-  return { token, baseUrl };
+  const baseUrl = process.env.PLANTNET_BASE_URL || 'https://my-api.plantnet.org/v2/species';
+  const lang = process.env.PLANTNET_LANG || 'en';
+  const type = process.env.PLANTNET_TYPE || 'kt';
+  const pageSize = process.env.PLANTNET_PAGE_SIZE || '100';
+  const page = process.env.PLANTNET_PAGE || '1';
+  const includeImages = process.env.PLANTNET_INCLUDE_IMAGES === 'true';
+  return { apiKey, baseUrl, lang, type, pageSize, page, includeImages };
 };
 
 const getPlantIdConfig = () => {
@@ -82,33 +130,177 @@ const stripDataUrl = (value: string): string => {
   return match?.[1] ?? value;
 };
 
-export const searchPlantsByCommonName = async (commonName: string): Promise<TreflePlantSearchResult> => {
+export const searchPlantsByCommonName = async (commonName: string): Promise<PlantNetPlantSearchResult> => {
   const normalized = commonName.trim().toLowerCase();
   const cached = cache.get(normalized);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.value;
   }
 
-  const { token, baseUrl } = getTrefleConfig();
-  const url = `${baseUrl}?token=${token}&filter[common_name]=${encodeURIComponent(commonName)}`;
+  const { apiKey, baseUrl, lang, type, pageSize, page, includeImages } = getPlantNetConfig();
+  const alignBaseUrl = baseUrl.replace('/v2/species', '/v2/projects/useful/species/align');
+  const aliasScientific = commonNameAliases[normalized];
+  const fetchSpecies = async (prefix: string, langValue: string): Promise<any[]> => {
+    const params = new URLSearchParams({
+      lang: langValue,
+      type,
+      pageSize,
+      page,
+      prefix,
+      'api-key': apiKey,
+    });
+    if (includeImages) {
+      params.set('images', 'true');
+    }
+    const url = `${baseUrl}?${params.toString()}`;
+    const response = await httpFetch(url);
+    if (!response.ok) {
+      const body = await response.text();
+      throw new PlantNetRequestError(response.status, body);
+    }
+    const raw = (await response.json()) as any;
+    if (Array.isArray(raw)) {
+      return raw;
+    }
+    if (Array.isArray(raw?.data)) {
+      return raw.data;
+    }
+    if (Array.isArray(raw?.results)) {
+      return raw.results;
+    }
+    if (Array.isArray(raw?.items)) {
+      return raw.items;
+    }
+    return [];
+  };
+  const fetchSpeciesBySynonym = async (name: string): Promise<any[]> => {
+    const params = new URLSearchParams({
+      name,
+      authorship: 'false',
+      synonyms: 'true',
+      'api-key': apiKey,
+    });
+    const url = `${alignBaseUrl}?${params.toString()}`;
+    const response = await httpFetch(url);
+    if (!response.ok) {
+      const body = await response.text();
+      if (response.status === 403 && body.includes('align')) {
+        return [];
+      }
+      throw new PlantNetRequestError(response.status, body);
+    }
+    const raw = (await response.json()) as any;
+    if (Array.isArray(raw)) {
+      return raw;
+    }
+    if (Array.isArray(raw?.data)) {
+      return raw.data;
+    }
+    return [];
+  };
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error('Trefle request failed');
+  const transliterated = transliterateUkToLatin(commonName);
+  const normalizedInput = commonName.trim();
+  const normalizedLower = normalizedInput.toLowerCase();
+  const firstToken = normalizedInput.split(/\s+/)[0] || normalizedInput;
+  const firstTokenLower = firstToken.toLowerCase();
+  const transliteratedFirstToken = transliterated.split(/\s+/)[0] || transliterated;
+  const scientificInput = aliasScientific ?? '';
+  const scientificFirstToken = scientificInput.split(/\s+/)[0] || scientificInput;
+  const prefixes = Array.from(
+    new Set([
+      normalizedInput,
+      normalizedLower,
+      transliterated,
+      scientificInput,
+      firstToken,
+      firstTokenLower,
+      transliteratedFirstToken,
+      transliteratedFirstToken.toLowerCase(),
+      scientificFirstToken,
+      scientificFirstToken.toLowerCase(),
+      transliterated.slice(0, 3),
+    ].filter((value) => value && value.trim().length > 0)),
+  );
+
+  let rawData: any[] = [];
+  for (const prefix of prefixes) {
+    rawData = await fetchSpecies(prefix, lang);
+    if (rawData.length > 0) {
+      break;
+    }
   }
+  if (rawData.length === 0) {
+    rawData = await fetchSpeciesBySynonym(commonName);
+  }
+  const finalNormalized = aliasScientific ? aliasScientific.toLowerCase() : normalizedLower;
+  const inputValue = finalNormalized || commonName.trim().toLowerCase();
+  const scored = rawData.map((item: any, index: number) => {
+      const species = item?.species ?? item;
+      const commonNames = Array.isArray(species?.commonNames) ? species.commonNames : [];
+      const matchedCommon = commonNames.find((name: string) => name.toLowerCase() === inputValue) ??
+        commonNames.find((name: string) => name.toLowerCase().includes(inputValue)) ??
+        null;
+      const commonNameValue = matchedCommon ?? (commonNames.length > 0 ? commonNames[0] : species?.commonName ?? null);
+      const genusValue = species?.genus?.scientificName ?? species?.genus ?? species?.genusName ?? null;
+      const familyValue = species?.family?.scientificName ?? species?.family ?? species?.familyName ?? null;
+      const imageUrl = species?.images?.[0]?.url ?? item?.images?.[0]?.url ?? null;
+      const imageValue =
+        imageUrl?.o ??
+        imageUrl?.m ??
+        imageUrl?.s ??
+        species?.image?.url ??
+        item?.image?.url ??
+        null;
 
-  const raw = (await response.json()) as TreflePlantSearchResult;
-  const shaped: TreflePlantSearchResult = {
-    data: (raw.data || []).map((item: any) => ({
-      id: item.id,
-      common_name: item.common_name ?? null,
-      scientific_name: item.scientific_name ?? null,
-      genus: item.genus ?? null,
-      family: item.family ?? null,
-      image_url: item.image_url ?? null,
-    })),
-    ...(raw.links ? { links: raw.links } : {}),
-    ...(raw.meta ? { meta: raw.meta } : {}),
+      return {
+        id: species?.id ?? species?.key ?? species?.speciesId ?? index,
+        common_name: commonNameValue,
+        scientific_name:
+          species?.scientificNameWithoutAuthor ??
+          species?.scientificName ??
+          species?.scientific_name ??
+          null,
+        genus: genusValue,
+        family: familyValue,
+        image_url: imageValue,
+      };
+    });
+
+  const ranked = scored
+    .filter((item) => {
+      if (!inputValue) {
+        return true;
+      }
+      const candidates = [item.common_name, item.scientific_name]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => value.toLowerCase());
+      return candidates.some((value) => value === inputValue || value.includes(inputValue));
+    })
+    .sort((a, b) => {
+      const score = (value: string | null): number => {
+        if (!inputValue || !value) {
+          return 0;
+        }
+        const lower = value.toLowerCase();
+        if (lower === inputValue) {
+          return 3;
+        }
+        if (lower.startsWith(inputValue)) {
+          return 2;
+        }
+        if (lower.includes(inputValue)) {
+          return 1;
+        }
+        return 0;
+      };
+      const aScore = Math.max(score(a.common_name), score(a.scientific_name));
+      const bScore = Math.max(score(b.common_name), score(b.scientific_name));
+      return bScore - aScore;
+    });
+
+  const shaped: PlantNetPlantSearchResult = {
+    data: ranked,
   };
 
   cache.set(normalized, { value: shaped, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -154,7 +346,7 @@ export const identifyPlantByImage = async (params: PlantIdIdentifyParams): Promi
     ...(normalizedModifiers.length > 0 ? { modifiers: normalizedModifiers } : {}),
   };
 
-  const response = await fetch(baseUrl, {
+  const response = await httpFetch(baseUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
