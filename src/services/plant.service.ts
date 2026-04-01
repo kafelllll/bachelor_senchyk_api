@@ -359,6 +359,5 @@ export const identifyPlantByImage = async (params: PlantIdIdentifyParams): Promi
     const body = await response.text();
     throw new PlantIdRequestError(response.status, body);
   }
-
   return (await response.json()) as unknown;
 };

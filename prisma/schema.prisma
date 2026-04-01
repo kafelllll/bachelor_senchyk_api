@@ -11,6 +11,8 @@ model User {
   name            String
   email           String    @unique
   passwordHash    String
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
   role            String    @default("user")
   termsAccepted   Boolean   @default(false)
   termsAcceptedAt DateTime?
@@ -23,8 +25,10 @@ model User {
 model Token {
   id        String   @id @default(uuid())
   token     String   @unique
+  type      String   @default("auth")
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime?
   createdAt DateTime @default(now())
 }
 
@@ -33,6 +37,7 @@ model Announcement {
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   plantName       String
+  offerType       String   @default("offer")
   category        String
   size            String
   condition       String
@@ -46,6 +51,7 @@ model Announcement {
   genus           String
   family          String
   commonName      String
+  photo           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

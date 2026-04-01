@@ -24,7 +24,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
   try {
     // Check if token exists in DB (hasn't been logged out)
-    const tokenInDb = await tokenRepository.findToken(token);
+    const tokenInDb = await tokenRepository.findToken(token, 'auth');
     if (!tokenInDb) {
       res.status(401).json({ message: 'Token is invalid or user logged out' });
       return;
