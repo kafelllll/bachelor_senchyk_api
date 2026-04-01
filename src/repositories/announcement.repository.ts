@@ -25,11 +25,30 @@ export const findAnnouncementsByUser = async (userId: string) => {
   });
 };
 
+export const findAnnouncementById = async (id: string, userId: string) => {
+  return prisma.announcement.findFirst({
+    where: {
+      id,
+      userId,
+    },
+  });
+};
+
 export const deleteAnnouncementById = async (id: string, userId: string) => {
   return prisma.announcement.deleteMany({
     where: {
       id,
       userId,
     },
+  });
+};
+
+export const updateAnnouncementById = async (id: string, userId: string, data: Prisma.AnnouncementUpdateInput) => {
+  return prisma.announcement.updateMany({
+    where: {
+      id,
+      userId,
+    },
+    data,
   });
 };

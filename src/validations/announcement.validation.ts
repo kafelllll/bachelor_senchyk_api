@@ -4,7 +4,7 @@ const categoryValues = ['indoor', 'succulent', 'other'] as const;
 const sizeValues = ['small', 'medium', 'large'] as const;
 const conditionValues = ['healthy', 'needs-care'] as const;
 const careLevelValues = ['easy', 'medium', 'hard'] as const;
-const offerTypeValues = ['offer', 'request'] as const;
+const offerTypeValues = ['offer', 'request', 'give', 'seek', 'giveaway', 'looking'] as const;
 
 export const createAnnouncementSchema = z.object({
   body: z.object({
@@ -80,5 +80,69 @@ export const createAnnouncementSchema = z.object({
   }, {
     message: 'Plant data is required',
     path: ['plantName'],
+  }),
+});
+
+export const updateAnnouncementSchema = z.object({
+  body: z.object({
+    plantName: z.string().min(1).optional(),
+    offerType: z.enum(offerTypeValues).optional(),
+    category: z.enum(categoryValues).optional(),
+    size: z.enum(sizeValues).optional(),
+    condition: z.enum(conditionValues).optional(),
+    careLevel: z.enum(careLevelValues).optional(),
+    city: z.string().min(1).optional(),
+    genus: z.string().min(1).optional(),
+    family: z.string().min(1).optional(),
+    commonName: z.string().min(1).optional(),
+    plantResult: z
+      .object({
+        id: z.union([z.string(), z.number()]).optional(),
+        name: z.string().min(1).optional(),
+        common_name: z.string().min(1).optional(),
+        commonName: z.string().min(1).optional(),
+        scientific_name: z.string().min(1).optional(),
+        scientificName: z.string().min(1).optional(),
+        genus: z.string().min(1).optional(),
+        family: z.string().min(1).optional(),
+      })
+      .optional(),
+    primary: z
+      .object({
+        id: z.union([z.string(), z.number()]).optional(),
+        name: z.string().min(1).optional(),
+        common_name: z.string().min(1).optional(),
+        commonName: z.string().min(1).optional(),
+        scientific_name: z.string().min(1).optional(),
+        scientificName: z.string().min(1).optional(),
+        genus: z.string().min(1).optional(),
+        family: z.string().min(1).optional(),
+      })
+      .optional(),
+    plant: z
+      .object({
+        id: z.union([z.string(), z.number()]).optional(),
+        name: z.string().min(1).optional(),
+        common_name: z.string().min(1).optional(),
+        commonName: z.string().min(1).optional(),
+        scientific_name: z.string().min(1).optional(),
+        scientificName: z.string().min(1).optional(),
+        genus: z.string().min(1).optional(),
+        family: z.string().min(1).optional(),
+      })
+      .optional(),
+    photoResult: z.unknown().optional(),
+    suggestion: z.unknown().optional(),
+    result: z.unknown().optional(),
+    description: z.string().min(1).optional(),
+    photo: z.string().min(1).nullable().optional(),
+    photoBase64: z.string().min(1).nullable().optional(),
+    additionalTags: z.array(z.string().min(1)).optional(),
+    district: z.string().min(1).optional(),
+    pestFree: z.boolean().optional(),
+    readyToExchange: z.boolean().optional(),
+  }).refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided',
+    path: ['body'],
   }),
 });
