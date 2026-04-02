@@ -1,9 +1,17 @@
 import { z } from 'zod';
 
+const normalizeOptionalQuery = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
 export const plantSearchSchema = z.object({
   query: z.object({
-    commonName: z.string().min(1).optional(),
-    name: z.string().min(1).optional(),
+    commonName: z.preprocess(normalizeOptionalQuery, z.string().min(1).optional()),
+    name: z.preprocess(normalizeOptionalQuery, z.string().min(1).optional()),
   }),
 }).refine((data) => Boolean(data.query.commonName || data.query.name), {
   message: 'commonName or name is required',

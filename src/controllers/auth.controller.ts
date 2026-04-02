@@ -46,7 +46,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
-  const token = typeof req.query.token === 'string' ? req.query.token : '';
+  const token = typeof req.query.token === 'string' ? req.query.token.trim() : '';
   if (!token) {
     res.status(400).json({ success: false, message: 'Verification token is required' });
     return;
@@ -97,6 +97,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
     const user = await authService.getUserById(userId);
     res.status(200).json({ success: true, user });
   } catch (error: any) {
-    res.status(404).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch user' });
+    return;
   }
 };

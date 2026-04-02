@@ -51,9 +51,17 @@ model Announcement {
   genus           String
   family          String
   commonName      String
-  photo           String?
   photos          String[] @default([])
   coverPhoto      String?
+  wateringFreq    String
+  lightReqs       String
+  humidity        String?
+  toxicity        String?
+  growthRate      String?
+  hasOffspring    Boolean  @default(false)
+  status          String   @default("active")
+  preferredExchangeItems String[] @default([])
+  expiresAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

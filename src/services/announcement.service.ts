@@ -99,6 +99,29 @@ const normalizePhotos = (value: unknown) => {
   return cleaned.slice(0, 5);
 };
 
+const normalizeString = (str: string | undefined | null): string | null => {
+  if (!str) return null;
+  return str.trim().replace(/\s+/g, ' ');
+};
+
+const sanitizeHtml = (html: string | undefined | null): string | null => {
+  if (!html) return null;
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/javascript:/gi, '');
+};
+
+const normalizeCity = (city: string | undefined | null): string | null => {
+  if (!city) return null;
+  return city
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 const normalizeAnnouncementInput = (data: any) => {
   const normalized = { ...data };
   if (normalized.offerType === undefined && normalized.offer_type !== undefined) {
@@ -177,24 +200,32 @@ export const createAnnouncement = async (userId: string, data: CreateAnnouncemen
 
   const payload: any = {
     user: { connect: { id: userId } },
-    plantName,
+    plantName: normalizeString(plantName),
     offerType: normalizeOfferType(normalizedData.offerType),
     category: normalizedData.category,
     size: normalizedData.size,
     condition: normalizedData.condition,
     careLevel: normalizedData.careLevel,
-    city: normalizedData.city,
-    genus,
-    family,
-    commonName,
-    description: normalizedData.description ?? null,
-    photo: coverPhoto,
+    city: normalizeCity(normalizedData.city),
+    genus: normalizeString(genus),
+    family: normalizeString(family),
+    commonName: normalizeString(commonName),
+    description: sanitizeHtml(normalizedData.description),
     photos,
     coverPhoto,
-    additionalTags: normalizedData.additionalTags ?? [],
-    district: normalizedData.district ?? null,
+    additionalTags: (normalizedData.additionalTags || []).map((tag: string) => normalizeString(tag) || '').filter(Boolean),
+    district: normalizeString(normalizedData.district),
     pestFree: normalizedData.pestFree ?? null,
     readyToExchange: normalizedData.readyToExchange ?? null,
+    wateringFreq: normalizedData.wateringFreq ?? null,
+    lightReqs: normalizedData.lightReqs ?? null,
+    humidity: normalizedData.humidity ?? null,
+    toxicity: normalizedData.toxicity ?? null,
+    growthRate: normalizedData.growthRate ?? null,
+    hasOffspring: normalizedData.hasOffspring ?? false,
+    status: normalizedData.status ?? 'active',
+    preferredExchangeItems: (normalizedData.preferredExchangeItems || []).map((item: string) => normalizeString(item) || '').filter(Boolean),
+    expiresAt: normalizedData.expiresAt ? new Date(normalizedData.expiresAt) : null,
   };
 
   return announcementRepository.createAnnouncement(payload);
@@ -210,6 +241,13 @@ export const getAnnouncementsForUser = async (userId: string) => {
 
 export const getAnnouncementById = async (userId: string, announcementId: string) => {
   return announcementRepository.findAnnouncementById(announcementId, userId);
+};
+
+/**
+ * Отримує оглошення за ID без перевірки користувача (публічний доступ)
+ */
+export const getAnnouncementByIdPublic = async (announcementId: string) => {
+  return announcementRepository.findAnnouncementByIdPublic(announcementId);
 };
 
 export const deleteAnnouncement = async (userId: string, announcementId: string) => {
@@ -244,21 +282,30 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
 
   const normalizedOfferType = normalizeOfferType(normalizedData.offerType);
   const updatePayload: Prisma.AnnouncementUpdateInput = {
-    ...(normalizedData.plantName ? { plantName: normalizedData.plantName } : {}),
+    ...(normalizedData.plantName ? { plantName: normalizeString(normalizedData.plantName) } : {}),
     ...(normalizedOfferType ? { offerType: normalizedOfferType } : {}),
     ...(normalizedData.category ? { category: normalizedData.category } : {}),
     ...(normalizedData.size ? { size: normalizedData.size } : {}),
     ...(normalizedData.condition ? { condition: normalizedData.condition } : {}),
     ...(normalizedData.careLevel ? { careLevel: normalizedData.careLevel } : {}),
-    ...(normalizedData.city ? { city: normalizedData.city } : {}),
-    ...(normalizedData.genus ? { genus: normalizedData.genus } : {}),
-    ...(normalizedData.family ? { family: normalizedData.family } : {}),
-    ...(normalizedData.commonName ? { commonName: normalizedData.commonName } : {}),
-    ...(normalizedData.description !== undefined ? { description: normalizedData.description ?? null } : {}),
-    ...(normalizedData.additionalTags ? { additionalTags: normalizedData.additionalTags } : {}),
-    ...(normalizedData.district !== undefined ? { district: normalizedData.district ?? null } : {}),
+    ...(normalizedData.city ? { city: normalizeCity(normalizedData.city) } : {}),
+    ...(normalizedData.genus ? { genus: normalizeString(normalizedData.genus) } : {}),
+    ...(normalizedData.family ? { family: normalizeString(normalizedData.family) } : {}),
+    ...(normalizedData.commonName ? { commonName: normalizeString(normalizedData.commonName) } : {}),
+    ...(normalizedData.description !== undefined ? { description: sanitizeHtml(normalizedData.description) } : {}),
+    ...(normalizedData.additionalTags ? { additionalTags: normalizedData.additionalTags.map((tag: string) => normalizeString(tag) || '').filter(Boolean) } : {}),
+    ...(normalizedData.district !== undefined ? { district: normalizeString(normalizedData.district) } : {}),
     ...(normalizedData.pestFree !== undefined ? { pestFree: normalizedData.pestFree } : {}),
     ...(normalizedData.readyToExchange !== undefined ? { readyToExchange: normalizedData.readyToExchange } : {}),
+    ...(normalizedData.wateringFreq !== undefined ? { wateringFreq: normalizedData.wateringFreq ?? null } : {}),
+    ...(normalizedData.lightReqs !== undefined ? { lightReqs: normalizedData.lightReqs ?? null } : {}),
+    ...(normalizedData.humidity !== undefined ? { humidity: normalizedData.humidity ?? null } : {}),
+    ...(normalizedData.toxicity !== undefined ? { toxicity: normalizedData.toxicity ?? null } : {}),
+    ...(normalizedData.growthRate !== undefined ? { growthRate: normalizedData.growthRate ?? null } : {}),
+    ...(normalizedData.hasOffspring !== undefined ? { hasOffspring: normalizedData.hasOffspring } : {}),
+    ...(normalizedData.status !== undefined ? { status: normalizedData.status ?? 'active' } : {}),
+    ...(normalizedData.preferredExchangeItems ? { preferredExchangeItems: normalizedData.preferredExchangeItems.map((item: string) => normalizeString(item) || '').filter(Boolean) } : {}),
+    ...(normalizedData.expiresAt !== undefined ? { expiresAt: normalizedData.expiresAt ? new Date(normalizedData.expiresAt) : null } : {}),
   };
 
   const hasPhotosArray = 'photos' in normalizedData || 'images' in normalizedData;
@@ -307,7 +354,7 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
         plantResult.commonName ??
         null;
       if (typeof nextPlantName === 'string' && nextPlantName.trim().length > 0) {
-        updatePayload.plantName = nextPlantName;
+        updatePayload.plantName = normalizeString(nextPlantName);
       }
     }
     if (!updatePayload.commonName) {
@@ -319,23 +366,30 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
         plantResult.scientificName ??
         null;
       if (typeof nextCommonName === 'string' && nextCommonName.trim().length > 0) {
-        updatePayload.commonName = nextCommonName;
+        updatePayload.commonName = normalizeString(nextCommonName);
       }
     }
     if (!updatePayload.genus) {
       const nextGenus = plantResult.genus ?? null;
       if (typeof nextGenus === 'string' && nextGenus.trim().length > 0) {
-        updatePayload.genus = nextGenus;
+        updatePayload.genus = normalizeString(nextGenus);
       }
     }
     if (!updatePayload.family) {
       const nextFamily = plantResult.family ?? null;
       if (typeof nextFamily === 'string' && nextFamily.trim().length > 0) {
-        updatePayload.family = nextFamily;
+        updatePayload.family = normalizeString(nextFamily);
       }
     }
   }
 
   const result = await announcementRepository.updateAnnouncementById(announcementId, userId, updatePayload);
   return result.count > 0;
+};
+
+/**
+ * Підраховує кількість активних оглошень користувача
+ */
+export const countActiveAnnouncements = async (userId: string) => {
+  return announcementRepository.countActiveAnnouncements(userId);
 };
