@@ -57,17 +57,86 @@ const findPlantData = (value: unknown, maxDepth = 4): Record<string, unknown> | 
   return null;
 };
 
+const buildPhotoUrl = (photoKey: string | null | undefined) => {
+  if (!photoKey) {
+    return null;
+  }
+  const baseUrl = process.env.AWS_S3_PUBLIC_BASE_URL;
+  if (!baseUrl) {
+    return photoKey;
+  }
+  return `${baseUrl.replace(/\/$/, '')}/${photoKey.replace(/^\//, '')}`;
+};
+
+const resolvePhoto = (data: {
+  photo?: string | null;
+  photoUrl?: string | null;
+  photoKey?: string | null;
+  photoBase64?: string | null;
+}) => {
+  if (data.photoBase64) {
+    return data.photoBase64;
+  }
+  if (data.photo) {
+    return data.photo;
+  }
+  if (data.photoUrl) {
+    return data.photoUrl;
+  }
+  if (data.photoKey) {
+    return buildPhotoUrl(data.photoKey);
+  }
+  return null;
+};
+
+const normalizePhotos = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return [] as string[];
+  }
+  const cleaned = value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => item.length > 0);
+  return cleaned.slice(0, 5);
+};
+
+const normalizeAnnouncementInput = (data: any) => {
+  const normalized = { ...data };
+  if (normalized.offerType === undefined && normalized.offer_type !== undefined) {
+    normalized.offerType = normalized.offer_type;
+  }
+  if (normalized.careLevel === undefined && normalized.care_level !== undefined) {
+    normalized.careLevel = normalized.care_level;
+  }
+  if (normalized.additionalTags === undefined && normalized.additional_tags !== undefined) {
+    normalized.additionalTags = normalized.additional_tags;
+  }
+  if (normalized.pestFree === undefined && normalized.pest_free !== undefined) {
+    normalized.pestFree = normalized.pest_free;
+  }
+  if (normalized.readyToExchange === undefined && normalized.ready_to_exchange !== undefined) {
+    normalized.readyToExchange = normalized.ready_to_exchange;
+  }
+  if (normalized.photoUrl === undefined && normalized.imageUrl !== undefined) {
+    normalized.photoUrl = normalized.imageUrl;
+  }
+  if (normalized.photos === undefined && normalized.images !== undefined) {
+    normalized.photos = normalized.images;
+  }
+  return normalized;
+};
+
 export const createAnnouncement = async (userId: string, data: CreateAnnouncementInput) => {
+  const normalizedData = normalizeAnnouncementInput(data as any);
   const plantResult =
-    findPlantData(data.plantResult) ??
-    findPlantData(data.primary) ??
-    findPlantData(data.plant) ??
+    findPlantData(normalizedData.plantResult) ??
+    findPlantData(normalizedData.primary) ??
+    findPlantData(normalizedData.plant) ??
     findPlantData((data as any).photoResult) ??
     findPlantData((data as any).suggestion) ??
     findPlantData((data as any).result) ??
     {};
   const plantName =
-    data.plantName ??
+    normalizedData.plantName ??
     plantResult.scientific_name ??
     plantResult.scientificName ??
     plantResult.name ??
@@ -75,16 +144,22 @@ export const createAnnouncement = async (userId: string, data: CreateAnnouncemen
     plantResult.commonName ??
     'Unknown';
   const commonName =
-    data.commonName ??
+    normalizedData.commonName ??
     plantResult.common_name ??
     plantResult.commonName ??
     plantResult.name ??
     plantResult.scientific_name ??
     plantResult.scientificName ??
     'Unknown';
-  const genus = data.genus ?? plantResult.genus ?? 'Unknown';
-  const family = data.family ?? plantResult.family ?? 'Unknown';
-  const photo = data.photoBase64 ?? data.photo ?? null;
+  const genus = normalizedData.genus ?? plantResult.genus ?? 'Unknown';
+  const family = normalizedData.family ?? plantResult.family ?? 'Unknown';
+  const legacyPhoto = resolvePhoto(normalizedData);
+  const photosInput = normalizePhotos((normalizedData as any).photos);
+  let coverPhoto = (normalizedData as any).coverPhoto ?? legacyPhoto ?? null;
+  let photos = photosInput.length > 0 ? photosInput : coverPhoto ? [coverPhoto] : [];
+  if (coverPhoto && !photos.includes(coverPhoto)) {
+    photos = [coverPhoto, ...photos].slice(0, 5);
+  }
 
   const normalizeOfferType = (value?: string) => {
     const lower = value?.toLowerCase();
@@ -103,21 +178,23 @@ export const createAnnouncement = async (userId: string, data: CreateAnnouncemen
   const payload: any = {
     user: { connect: { id: userId } },
     plantName,
-    offerType: normalizeOfferType(data.offerType),
-    category: data.category,
-    size: data.size,
-    condition: data.condition,
-    careLevel: data.careLevel,
-    city: data.city,
+    offerType: normalizeOfferType(normalizedData.offerType),
+    category: normalizedData.category,
+    size: normalizedData.size,
+    condition: normalizedData.condition,
+    careLevel: normalizedData.careLevel,
+    city: normalizedData.city,
     genus,
     family,
     commonName,
-    description: data.description ?? null,
-    photo,
-    additionalTags: data.additionalTags ?? [],
-    district: data.district ?? null,
-    pestFree: data.pestFree ?? null,
-    readyToExchange: data.readyToExchange ?? null,
+    description: normalizedData.description ?? null,
+    photo: coverPhoto,
+    photos,
+    coverPhoto,
+    additionalTags: normalizedData.additionalTags ?? [],
+    district: normalizedData.district ?? null,
+    pestFree: normalizedData.pestFree ?? null,
+    readyToExchange: normalizedData.readyToExchange ?? null,
   };
 
   return announcementRepository.createAnnouncement(payload);
@@ -141,10 +218,11 @@ export const deleteAnnouncement = async (userId: string, announcementId: string)
 };
 
 export const updateAnnouncement = async (userId: string, announcementId: string, data: UpdateAnnouncementInput) => {
+  const normalizedData = normalizeAnnouncementInput(data as any);
   const plantResult =
-    findPlantData(data.plantResult) ??
-    findPlantData(data.primary) ??
-    findPlantData(data.plant) ??
+    findPlantData(normalizedData.plantResult) ??
+    findPlantData(normalizedData.primary) ??
+    findPlantData(normalizedData.plant) ??
     findPlantData((data as any).photoResult) ??
     findPlantData((data as any).suggestion) ??
     findPlantData((data as any).result) ??
@@ -164,28 +242,59 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
     return lower;
   };
 
-  const normalizedOfferType = normalizeOfferType(data.offerType);
+  const normalizedOfferType = normalizeOfferType(normalizedData.offerType);
   const updatePayload: Prisma.AnnouncementUpdateInput = {
-    ...(data.plantName ? { plantName: data.plantName } : {}),
+    ...(normalizedData.plantName ? { plantName: normalizedData.plantName } : {}),
     ...(normalizedOfferType ? { offerType: normalizedOfferType } : {}),
-    ...(data.category ? { category: data.category } : {}),
-    ...(data.size ? { size: data.size } : {}),
-    ...(data.condition ? { condition: data.condition } : {}),
-    ...(data.careLevel ? { careLevel: data.careLevel } : {}),
-    ...(data.city ? { city: data.city } : {}),
-    ...(data.genus ? { genus: data.genus } : {}),
-    ...(data.family ? { family: data.family } : {}),
-    ...(data.commonName ? { commonName: data.commonName } : {}),
-    ...(data.description !== undefined ? { description: data.description ?? null } : {}),
-    ...(data.additionalTags ? { additionalTags: data.additionalTags } : {}),
-    ...(data.district !== undefined ? { district: data.district ?? null } : {}),
-    ...(data.pestFree !== undefined ? { pestFree: data.pestFree } : {}),
-    ...(data.readyToExchange !== undefined ? { readyToExchange: data.readyToExchange } : {}),
+    ...(normalizedData.category ? { category: normalizedData.category } : {}),
+    ...(normalizedData.size ? { size: normalizedData.size } : {}),
+    ...(normalizedData.condition ? { condition: normalizedData.condition } : {}),
+    ...(normalizedData.careLevel ? { careLevel: normalizedData.careLevel } : {}),
+    ...(normalizedData.city ? { city: normalizedData.city } : {}),
+    ...(normalizedData.genus ? { genus: normalizedData.genus } : {}),
+    ...(normalizedData.family ? { family: normalizedData.family } : {}),
+    ...(normalizedData.commonName ? { commonName: normalizedData.commonName } : {}),
+    ...(normalizedData.description !== undefined ? { description: normalizedData.description ?? null } : {}),
+    ...(normalizedData.additionalTags ? { additionalTags: normalizedData.additionalTags } : {}),
+    ...(normalizedData.district !== undefined ? { district: normalizedData.district ?? null } : {}),
+    ...(normalizedData.pestFree !== undefined ? { pestFree: normalizedData.pestFree } : {}),
+    ...(normalizedData.readyToExchange !== undefined ? { readyToExchange: normalizedData.readyToExchange } : {}),
   };
 
-  if ('photoBase64' in data || 'photo' in data) {
-    const nextPhoto = data.photoBase64 ?? data.photo ?? null;
-    updatePayload.photo = nextPhoto;
+  const hasPhotosArray = 'photos' in normalizedData || 'images' in normalizedData;
+  const hasCoverPhoto = 'coverPhoto' in normalizedData || 'imageUrl' in normalizedData;
+  const hasLegacyPhoto = 'photoBase64' in normalizedData || 'photo' in normalizedData || 'photoUrl' in normalizedData || 'photoKey' in normalizedData;
+
+  if (hasPhotosArray || hasCoverPhoto || hasLegacyPhoto) {
+    const nextPhotos = hasPhotosArray ? normalizePhotos((normalizedData as any).photos) : null;
+    const resolvedLegacy = resolvePhoto(normalizedData);
+    let nextCover: string | null = null;
+
+    if (hasCoverPhoto) {
+      nextCover = (normalizedData as any).coverPhoto ?? null;
+    } else if (hasLegacyPhoto) {
+      nextCover = resolvedLegacy;
+    }
+
+    if (hasPhotosArray && !nextCover && nextPhotos && nextPhotos.length > 0) {
+      nextCover = nextPhotos[0];
+    }
+
+    if (hasPhotosArray && nextPhotos) {
+      let normalized = nextPhotos;
+      if (nextCover && !normalized.includes(nextCover)) {
+        normalized = [nextCover, ...normalized].slice(0, 5);
+      }
+      updatePayload.photos = normalized;
+    }
+
+    if (hasCoverPhoto && (normalizedData as any).coverPhoto === null) {
+      updatePayload.coverPhoto = null;
+      updatePayload.photo = null;
+    } else if (nextCover) {
+      updatePayload.coverPhoto = nextCover;
+      updatePayload.photo = nextCover;
+    }
   }
 
   if (plantResult) {

@@ -52,6 +52,8 @@ model Announcement {
   family          String
   commonName      String
   photo           String?
+  photos          String[] @default([])
+  coverPhoto      String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
