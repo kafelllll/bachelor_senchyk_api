@@ -122,6 +122,46 @@ const normalizeCity = (city: string | undefined | null): string | null => {
     .join(' ');
 };
 
+const normalizeNonEmptyString = (value: unknown): string | null => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  return normalizeString(value);
+};
+
+const normalizeOfferTypeForCreate = (value?: string) => {
+  const lower = value?.toLowerCase();
+  if (!lower) {
+    return 'offer';
+  }
+  if (lower === 'give' || lower === 'giveaway') {
+    return 'offer';
+  }
+  if (lower === 'seek' || lower === 'looking' || lower === 'request' || lower === 'looking_for' || lower === 'looking-for') {
+    return 'looking-for';
+  }
+  return lower === 'offer' || lower === 'looking-for' ? lower : 'offer';
+};
+
+const normalizeOfferTypeForUpdate = (value?: string) => {
+  const lower = value?.toLowerCase();
+  if (!lower) {
+    return undefined;
+  }
+  if (lower === 'give' || lower === 'giveaway') {
+    return 'offer';
+  }
+  if (lower === 'seek' || lower === 'looking' || lower === 'request' || lower === 'looking_for' || lower === 'looking-for') {
+    return 'looking-for';
+  }
+  return lower === 'offer' || lower === 'looking-for' ? lower : undefined;
+};
+
+const normalizeRequiredString = (value: string | null | undefined, fallback: string) => {
+  const normalized = normalizeString(value ?? null);
+  return normalized ?? fallback;
+};
+
 const normalizeAnnouncementInput = (data: any) => {
   const normalized = { ...data };
   if (normalized.offerType === undefined && normalized.offer_type !== undefined) {
@@ -184,32 +224,18 @@ export const createAnnouncement = async (userId: string, data: CreateAnnouncemen
     photos = [coverPhoto, ...photos].slice(0, 5);
   }
 
-  const normalizeOfferType = (value?: string) => {
-    const lower = value?.toLowerCase();
-    if (!lower) {
-      return 'offer';
-    }
-    if (lower === 'give' || lower === 'giveaway') {
-      return 'offer';
-    }
-    if (lower === 'seek' || lower === 'looking') {
-      return 'request';
-    }
-    return lower;
-  };
-
   const payload: any = {
     user: { connect: { id: userId } },
-    plantName: normalizeString(plantName),
-    offerType: normalizeOfferType(normalizedData.offerType),
+    plantName: normalizeRequiredString(plantName, 'Unknown'),
+    offerType: normalizeOfferTypeForCreate(normalizedData.offerType),
     category: normalizedData.category,
     size: normalizedData.size,
     condition: normalizedData.condition,
     careLevel: normalizedData.careLevel,
-    city: normalizeCity(normalizedData.city),
-    genus: normalizeString(genus),
-    family: normalizeString(family),
-    commonName: normalizeString(commonName),
+    city: normalizeRequiredString(normalizeCity(normalizedData.city), 'Unknown'),
+    genus: normalizeRequiredString(genus, 'Unknown'),
+    family: normalizeRequiredString(family, 'Unknown'),
+    commonName: normalizeRequiredString(commonName, 'Unknown'),
     description: sanitizeHtml(normalizedData.description),
     photos,
     coverPhoto,
@@ -224,7 +250,6 @@ export const createAnnouncement = async (userId: string, data: CreateAnnouncemen
     growthRate: normalizedData.growthRate ?? null,
     hasOffspring: normalizedData.hasOffspring ?? false,
     status: normalizedData.status ?? 'active',
-    preferredExchangeItems: (normalizedData.preferredExchangeItems || []).map((item: string) => normalizeString(item) || '').filter(Boolean),
     expiresAt: normalizedData.expiresAt ? new Date(normalizedData.expiresAt) : null,
   };
 
@@ -266,32 +291,24 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
     findPlantData((data as any).result) ??
     null;
 
-  const normalizeOfferType = (value?: string) => {
-    const lower = value?.toLowerCase();
-    if (!lower) {
-      return undefined;
-    }
-    if (lower === 'give' || lower === 'giveaway') {
-      return 'offer';
-    }
-    if (lower === 'seek' || lower === 'looking') {
-      return 'request';
-    }
-    return lower;
-  };
+  const normalizedOfferType = normalizeOfferTypeForUpdate(normalizedData.offerType);
+  const normalizedPlantName = normalizeString(normalizedData.plantName ?? null);
+  const normalizedGenus = normalizeString(normalizedData.genus ?? null);
+  const normalizedFamily = normalizeString(normalizedData.family ?? null);
+  const normalizedCommonName = normalizeString(normalizedData.commonName ?? null);
+  const normalizedCity = normalizeCity(normalizedData.city ?? null);
 
-  const normalizedOfferType = normalizeOfferType(normalizedData.offerType);
   const updatePayload: Prisma.AnnouncementUpdateInput = {
-    ...(normalizedData.plantName ? { plantName: normalizeString(normalizedData.plantName) } : {}),
+    ...(normalizedPlantName ? { plantName: normalizedPlantName } : {}),
     ...(normalizedOfferType ? { offerType: normalizedOfferType } : {}),
     ...(normalizedData.category ? { category: normalizedData.category } : {}),
     ...(normalizedData.size ? { size: normalizedData.size } : {}),
     ...(normalizedData.condition ? { condition: normalizedData.condition } : {}),
     ...(normalizedData.careLevel ? { careLevel: normalizedData.careLevel } : {}),
-    ...(normalizedData.city ? { city: normalizeCity(normalizedData.city) } : {}),
-    ...(normalizedData.genus ? { genus: normalizeString(normalizedData.genus) } : {}),
-    ...(normalizedData.family ? { family: normalizeString(normalizedData.family) } : {}),
-    ...(normalizedData.commonName ? { commonName: normalizeString(normalizedData.commonName) } : {}),
+    ...(normalizedCity ? { city: normalizedCity } : {}),
+    ...(normalizedGenus ? { genus: normalizedGenus } : {}),
+    ...(normalizedFamily ? { family: normalizedFamily } : {}),
+    ...(normalizedCommonName ? { commonName: normalizedCommonName } : {}),
     ...(normalizedData.description !== undefined ? { description: sanitizeHtml(normalizedData.description) } : {}),
     ...(normalizedData.additionalTags ? { additionalTags: normalizedData.additionalTags.map((tag: string) => normalizeString(tag) || '').filter(Boolean) } : {}),
     ...(normalizedData.district !== undefined ? { district: normalizeString(normalizedData.district) } : {}),
@@ -304,7 +321,6 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
     ...(normalizedData.growthRate !== undefined ? { growthRate: normalizedData.growthRate ?? null } : {}),
     ...(normalizedData.hasOffspring !== undefined ? { hasOffspring: normalizedData.hasOffspring } : {}),
     ...(normalizedData.status !== undefined ? { status: normalizedData.status ?? 'active' } : {}),
-    ...(normalizedData.preferredExchangeItems ? { preferredExchangeItems: normalizedData.preferredExchangeItems.map((item: string) => normalizeString(item) || '').filter(Boolean) } : {}),
     ...(normalizedData.expiresAt !== undefined ? { expiresAt: normalizedData.expiresAt ? new Date(normalizedData.expiresAt) : null } : {}),
   };
 
@@ -324,7 +340,7 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
     }
 
     if (hasPhotosArray && !nextCover && nextPhotos && nextPhotos.length > 0) {
-      nextCover = nextPhotos[0];
+      nextCover = nextPhotos[0] ?? null;
     }
 
     if (hasPhotosArray && nextPhotos) {
@@ -337,10 +353,8 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
 
     if (hasCoverPhoto && (normalizedData as any).coverPhoto === null) {
       updatePayload.coverPhoto = null;
-      updatePayload.photo = null;
     } else if (nextCover) {
       updatePayload.coverPhoto = nextCover;
-      updatePayload.photo = nextCover;
     }
   }
 
@@ -353,8 +367,9 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
         plantResult.common_name ??
         plantResult.commonName ??
         null;
-      if (typeof nextPlantName === 'string' && nextPlantName.trim().length > 0) {
-        updatePayload.plantName = normalizeString(nextPlantName);
+      const normalizedName = normalizeNonEmptyString(nextPlantName);
+      if (normalizedName) {
+        updatePayload.plantName = normalizedName;
       }
     }
     if (!updatePayload.commonName) {
@@ -365,20 +380,23 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
         plantResult.scientific_name ??
         plantResult.scientificName ??
         null;
-      if (typeof nextCommonName === 'string' && nextCommonName.trim().length > 0) {
-        updatePayload.commonName = normalizeString(nextCommonName);
+      const normalizedName = normalizeNonEmptyString(nextCommonName);
+      if (normalizedName) {
+        updatePayload.commonName = normalizedName;
       }
     }
     if (!updatePayload.genus) {
       const nextGenus = plantResult.genus ?? null;
-      if (typeof nextGenus === 'string' && nextGenus.trim().length > 0) {
-        updatePayload.genus = normalizeString(nextGenus);
+      const normalizedName = normalizeNonEmptyString(nextGenus);
+      if (normalizedName) {
+        updatePayload.genus = normalizedName;
       }
     }
     if (!updatePayload.family) {
       const nextFamily = plantResult.family ?? null;
-      if (typeof nextFamily === 'string' && nextFamily.trim().length > 0) {
-        updatePayload.family = normalizeString(nextFamily);
+      const normalizedName = normalizeNonEmptyString(nextFamily);
+      if (normalizedName) {
+        updatePayload.family = normalizedName;
       }
     }
   }

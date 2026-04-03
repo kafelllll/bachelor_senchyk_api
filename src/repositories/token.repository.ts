@@ -7,19 +7,18 @@ export const saveToken = async (userId: string, token: string, type = 'auth', ex
       token,
       type,
       ...(expiresAt ? { expiresAt } : {}),
-    } as any,
+    },
   });
 };
 
 export const findToken = async (token: string, type = 'auth') => {
-  return prisma.token.findUnique({
+  const record = await prisma.token.findUnique({
     where: { token },
-  }).then((record) => {
-    if (!record || (record as any).type !== type) {
-      return null;
-    }
-    return record;
   });
+  if (!record || record.type !== type) {
+    return null;
+  }
+  return record;
 };
 
 export const deleteToken = async (token: string, type = 'auth') => {

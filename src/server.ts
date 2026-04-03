@@ -6,6 +6,7 @@ import userRoutes from './routes/user.routes.js';
 import announcementRoutes from './routes/announcement.routes.js';
 import plantRoutes from './routes/plant.routes.js';
 import uploadRoutes from './routes/uploadRoutes.cjs';
+import profileRoutes from './routes/profile.routes.js';
 import { normalizeRequestStrings } from './middlewares/normalize.middleware.js';
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/users', userRoutes);
 app.use('/announcements', announcementRoutes);
 app.use('/plants', plantRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/profile', profileRoutes);
 
 app.get('/', (req, res) => {
   res.send('Працює на TypeScript!');

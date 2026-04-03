@@ -4,7 +4,7 @@ const categoryValues = ['indoor', 'succulent', 'other'] as const;
 const sizeValues = ['small', 'medium', 'large'] as const;
 const conditionValues = ['healthy', 'needs-care'] as const;
 const careLevelValues = ['easy', 'medium', 'hard'] as const;
-const offerTypeValues = ['offer', 'request', 'give', 'seek', 'giveaway', 'looking'] as const;
+const offerTypeValues = ['offer', 'looking-for'] as const;
 const wateringFreqValues = ['rare', 'moderate', 'frequent'] as const;
 const lightReqsValues = ['bright', 'partial', 'shade'] as const;
 const humidityValues = ['low', 'medium', 'high'] as const;
@@ -46,6 +46,47 @@ const validateDateInRange = (date: string) => {
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() + 5);
   return d > now && d <= maxDate;
+};
+
+const plantSourceSchema = z
+  .object({
+    id: z
+      .union([
+        z.string().regex(/^\d+$/, 'ID must contain only digits'),
+        z.number().int().gte(0, 'ID must be non-negative'),
+      ])
+      .optional(),
+    name: z.string().min(1).optional(),
+    common_name: z.string().min(1).optional(),
+    commonName: z.string().min(1).optional(),
+    scientific_name: z.string().min(1).optional(),
+    scientificName: z.string().min(1).optional(),
+    genus: z.string().min(1).optional(),
+    family: z.string().min(1).optional(),
+  })
+  .optional();
+
+const hasOfferCaseConflicts = (data: Record<string, unknown>) => {
+  if (data.offerType && (data as any).offer_type && data.offerType !== (data as any).offer_type) {
+    return true;
+  }
+  if (data.careLevel && (data as any).care_level && data.careLevel !== (data as any).care_level) {
+    return true;
+  }
+  return false;
+};
+
+
+const hasPlantResult = (sources: Array<unknown>) => {
+  return sources.some((source) => Boolean(
+    (source as any)?.name ||
+    (source as any)?.common_name ||
+    (source as any)?.commonName ||
+    (source as any)?.scientific_name ||
+    (source as any)?.scientificName ||
+    (source as any)?.genus ||
+    (source as any)?.family,
+  ));
 };
 
 export const createAnnouncementSchema = z.object({
@@ -110,59 +151,11 @@ export const createAnnouncementSchema = z.object({
       .optional(),
     
     // Plant detection API results
-    plantResult: z
-      .object({
-        id: z
-          .union([
-            z.string().regex(/^\d+$/, 'ID must contain only digits'),
-            z.number().int().gte(0, 'ID must be non-negative')
-          ])
-          .optional(),
-        name: z.string().min(1).optional(),
-        common_name: z.string().min(1).optional(),
-        commonName: z.string().min(1).optional(),
-        scientific_name: z.string().min(1).optional(),
-        scientificName: z.string().min(1).optional(),
-        genus: z.string().min(1).optional(),
-        family: z.string().min(1).optional(),
-      })
-      .optional(),
+    plantResult: plantSourceSchema,
     
-    primary: z
-      .object({
-        id: z
-          .union([
-            z.string().regex(/^\d+$/, 'ID must contain only digits'),
-            z.number().int().gte(0, 'ID must be non-negative')
-          ])
-          .optional(),
-        name: z.string().min(1).optional(),
-        common_name: z.string().min(1).optional(),
-        commonName: z.string().min(1).optional(),
-        scientific_name: z.string().min(1).optional(),
-        scientificName: z.string().min(1).optional(),
-        genus: z.string().min(1).optional(),
-        family: z.string().min(1).optional(),
-      })
-      .optional(),
+    primary: plantSourceSchema,
     
-    plant: z
-      .object({
-        id: z
-          .union([
-            z.string().regex(/^\d+$/, 'ID must contain only digits'),
-            z.number().int().gte(0, 'ID must be non-negative')
-          ])
-          .optional(),
-        name: z.string().min(1).optional(),
-        common_name: z.string().min(1).optional(),
-        commonName: z.string().min(1).optional(),
-        scientific_name: z.string().min(1).optional(),
-        scientificName: z.string().min(1).optional(),
-        genus: z.string().min(1).optional(),
-        family: z.string().min(1).optional(),
-      })
-      .optional(),
+    plant: plantSourceSchema,
     
     photoResult: z.unknown().optional(),
     suggestion: z.unknown().optional(),
@@ -244,15 +237,6 @@ export const createAnnouncementSchema = z.object({
     // Status and lifecycle
     status: z.enum(statusValues).optional(),
     
-    // Preferred items - only for offer types
-    preferredExchangeItems: z
-      .array(z.string().min(1).max(50, 'Each item max 50 characters').trim())
-      .max(10, 'Maximum 10 preferred items')
-      .refine(
-        arr => arr.length === 0 || arr.every(item => item.trim().length > 0),
-        'Items cannot be empty'
-      )
-      .optional(),
     
     // Expiration - must be future date
     expiresAt: z
@@ -271,45 +255,15 @@ export const createAnnouncementSchema = z.object({
     // P0: Plant data required - either direct or from API
     const hasDirect = Boolean(data.plantName || data.commonName || data.genus || data.family);
     const resultSources = [data.plantResult, data.primary, data.plant, data.photoResult, data.suggestion, data.result];
-    const hasResult = resultSources.some((source) => Boolean(
-      (source as any)?.name ||
-      (source as any)?.common_name ||
-      (source as any)?.commonName ||
-      (source as any)?.scientific_name ||
-      (source as any)?.scientificName ||
-      (source as any)?.genus ||
-      (source as any)?.family,
-    ));
+    const hasResult = hasPlantResult(resultSources);
     return hasDirect || hasResult;
   }, {
     message: 'Plant identification required: provide plant name, common name, genus, family, or use plant detection API',
     path: ['plantName'],
   })
-  .refine((data) => {
-    // MEDIUM: Conflict check for snake_case fields
-    if (data.offerType && (data as any).offer_type && 
-        data.offerType !== (data as any).offer_type) {
-      return false;
-    }
-    if (data.careLevel && (data as any).care_level && 
-        data.careLevel !== (data as any).care_level) {
-      return false;
-    }
-    return true;
-  }, {
+  .refine((data) => !hasOfferCaseConflicts(data as Record<string, unknown>), {
     message: 'offerType and offer_type, careLevel and care_level cannot have different values',
     path: ['offerType'],
-  })
-  .refine((data) => {
-    // P1: conditionalValidation - preferredExchangeItems only for offer types
-    const isOffer = ['offer', 'give', 'giveaway'].includes(data.offerType || '');
-    if (!isOffer && data.preferredExchangeItems && data.preferredExchangeItems.length > 0) {
-      return false;
-    }
-    return true;
-  }, {
-    message: 'Preferred exchange items can only be set for offer type announcements',
-    path: ['preferredExchangeItems'],
   }),
 });
 
@@ -445,14 +399,6 @@ export const updateAnnouncementSchema = z.object({
     
     status: z.enum(statusValues).optional(),
     
-    preferredExchangeItems: z
-      .array(z.string().min(1).max(50).trim())
-      .max(10)
-      .refine(
-        arr => arr.length === 0 || arr.every(item => item.trim().length > 0),
-        'Items cannot be empty'
-      )
-      .optional(),
     
     expiresAt: z
       .string()
@@ -470,31 +416,8 @@ export const updateAnnouncementSchema = z.object({
     message: 'At least one field must be provided',
     path: ['body'],
   })
-  .refine((data) => {
-    // MEDIUM: Conflict check for snake_case fields
-    if (data.offerType && (data as any).offer_type && 
-        data.offerType !== (data as any).offer_type) {
-      return false;
-    }
-    if (data.careLevel && (data as any).care_level && 
-        data.careLevel !== (data as any).care_level) {
-      return false;
-    }
-    return true;
-  }, {
+  .refine((data) => !hasOfferCaseConflicts(data as Record<string, unknown>), {
     message: 'offerType and offer_type, careLevel and care_level cannot have different values',
     path: ['offerType'],
-  })
-  .refine((data) => {
-    // P1: conditionalValidation - preferredExchangeItems only for offer types
-    const offerType = data.offerType || (data as any).offer_type;
-    const isOffer = offerType && ['offer', 'give', 'giveaway'].includes(offerType);
-    if (!isOffer && data.preferredExchangeItems && data.preferredExchangeItems.length > 0) {
-      return false;
-    }
-    return true;
-  }, {
-    message: 'Preferred exchange items can only be set for offer type announcements',
-    path: ['preferredExchangeItems'],
   }),
 });

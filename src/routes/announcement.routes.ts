@@ -6,13 +6,15 @@ import {
   deleteAnnouncementLimiter, 
   updateAnnouncementLimiter 
 } from '../middlewares/rateLimit.middleware.js';
-import { createAnnouncement, deleteAnnouncement, getAnnouncement, getAnnouncements, getMyAnnouncements, updateAnnouncement } from '../controllers/announcement.controller.js';
+import { createAnnouncement, deleteAnnouncement, getAnnouncement, getAnnouncementMatches, getAnnouncements, getMyAnnouncements, getUserAnnouncementMatches, updateAnnouncement } from '../controllers/announcement.controller.js';
 import { createAnnouncementSchema, updateAnnouncementSchema } from '../validations/announcement.validation.js';
 
 const router = Router();
 
 router.get('/', authenticate, getAnnouncements);
 router.get('/me', authenticate, getMyAnnouncements);
+router.get('/recommendations', authenticate, getUserAnnouncementMatches);
+router.get('/:id/matches', authenticate, getAnnouncementMatches);
 router.get('/:id', authenticate, getAnnouncement);
 router.post('/', authenticate, createAnnouncementLimiter, validate(createAnnouncementSchema), createAnnouncement);
 router.delete('/:id', authenticate, deleteAnnouncementLimiter, deleteAnnouncement);

@@ -1,21 +1,44 @@
 import prisma from '../config/prisma.js';
-import type { Prisma } from '@prisma/client';
+
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  avatar: true,
+  city: true,
+  bio: true,
+  emailVerified: true,
+  emailVerifiedAt: true,
+  role: true,
+  termsAccepted: true,
+  termsAcceptedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const profileSelect = {
+  id: true,
+  name: true,
+  email: true,
+  avatar: true,
+  city: true,
+  bio: true,
+  emailVerified: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 export const findUserById = async (id: string) => {
   return prisma.user.findUnique({
     where: { id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      emailVerified: true,
-      emailVerifiedAt: true,
-      role: true,
-      termsAccepted: true,
-      termsAcceptedAt: true,
-      createdAt: true,
-      updatedAt: true
-    } as any
+    select: userSelect,
+  });
+};
+
+export const findProfileByUserId = async (id: string) => {
+  return prisma.user.findUnique({
+    where: { id },
+    select: profileSelect,
   });
 };
 
@@ -23,8 +46,23 @@ export const findUserByEmail = async (email: string) => {
   return prisma.user.findUnique({ where: { email } });
 };
 
-export const createUser = async (userData: Prisma.UserCreateInput) => {
+export const createUser = async (userData: Record<string, unknown>) => {
   return prisma.user.create({ data: userData });
+};
+
+export const updateUserById = async (id: string, data: Record<string, unknown>) => {
+  return prisma.user.update({
+    where: { id },
+    data,
+    select: profileSelect,
+  });
+};
+
+export const deleteUserById = async (id: string) => {
+  return prisma.user.delete({
+    where: { id },
+    select: { id: true },
+  });
 };
 
 export const markEmailVerified = async (id: string) => {
@@ -33,7 +71,7 @@ export const markEmailVerified = async (id: string) => {
     data: {
       emailVerified: true,
       emailVerifiedAt: new Date(),
-    } as any,
+    },
   });
 };
 

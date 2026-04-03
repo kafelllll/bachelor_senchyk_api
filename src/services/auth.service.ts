@@ -11,6 +11,9 @@ type AuthUserRecord = {
   id: string;
   name: string;
   email: string;
+  avatar?: string | null;
+  city?: string | null;
+  bio?: string | null;
   passwordHash: string;
   role: string;
   emailVerified: boolean;
@@ -20,6 +23,19 @@ type AuthUserRecord = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+const toSafeUser = (user: AuthUserRecord) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  avatar: user.avatar ?? null,
+  city: user.city ?? null,
+  bio: user.bio ?? null,
+  role: user.role,
+  emailVerified: user.emailVerified,
+  termsAccepted: user.termsAccepted,
+  createdAt: user.createdAt,
+});
 
 const getBackendUrl = () => {
   return process.env.BACKEND_URL || 'http://localhost:3000';
@@ -52,15 +68,7 @@ export const registerUser = async (data: RegisterUserInput) => {
   await sendVerificationEmail(createdUser.email, verifyUrl);
 
   return {
-    user: {
-      id: createdUser.id,
-      name: createdUser.name,
-      email: createdUser.email,
-      role: createdUser.role,
-      emailVerified: createdUser.emailVerified,
-      termsAccepted: createdUser.termsAccepted,
-      createdAt: createdUser.createdAt
-    },
+    user: toSafeUser(createdUser),
   };
 };
 
@@ -77,15 +85,7 @@ export const loginUser = async (data: LoginUserInput) => {
   await tokenRepository.saveToken(user.id, token, 'auth');
 
   return {
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      emailVerified: user.emailVerified,
-      termsAccepted: user.termsAccepted,
-      createdAt: user.createdAt
-    },
+    user: toSafeUser(user),
     token
   };
 };
@@ -99,15 +99,7 @@ export const getUserById = async (id: string) => {
   if (!user) throw new Error('User not found');
   
   // Return safe user object
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    emailVerified: user.emailVerified,
-    termsAccepted: user.termsAccepted,
-    createdAt: user.createdAt
-  };
+  return toSafeUser(user);
 };
 
 export const verifyEmail = async (token: string) => {
@@ -127,15 +119,7 @@ export const verifyEmail = async (token: string) => {
   await tokenRepository.saveToken(updatedUser.id, authToken, 'auth');
 
   return {
-    user: {
-      id: updatedUser.id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      role: updatedUser.role,
-      emailVerified: updatedUser.emailVerified,
-      termsAccepted: updatedUser.termsAccepted,
-      createdAt: updatedUser.createdAt,
-    },
+    user: toSafeUser(updatedUser),
     token: authToken,
   };
 };

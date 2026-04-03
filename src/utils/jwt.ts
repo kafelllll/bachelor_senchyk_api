@@ -8,10 +8,10 @@ const getSecret = (): string => {
   return secret;
 };
 
-export const generateToken = (payload: object) => {
+export const generateToken = (payload: object): string => {
   return jwt.sign(payload, getSecret(), { expiresIn: '7d' });
 };
 
-export const verifyToken = (token: string) => {
+export const verifyToken = (token: string): jwt.JwtPayload | string => {
   return jwt.verify(token, getSecret());
 };

@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request } from 'express';
 import type { AuthRequest } from './auth.middleware.js';
 
@@ -19,7 +19,7 @@ const createKeyGenerator = () => {
       return authReq.user.id;
     }
     // Інакше використовуємо IP
-    return req.ip ?? 'unknown';
+    return req.ip ? ipKeyGenerator(req.ip) : 'unknown';
   };
 };
 

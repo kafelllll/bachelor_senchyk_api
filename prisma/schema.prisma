@@ -11,6 +11,9 @@ model User {
   name            String
   email           String    @unique
   passwordHash    String
+  avatar          String?
+  city            String?
+  bio             String?
   emailVerified   Boolean   @default(false)
   emailVerifiedAt DateTime?
   role            String    @default("user")
@@ -60,7 +63,6 @@ model Announcement {
   growthRate      String?
   hasOffspring    Boolean  @default(false)
   status          String   @default("active")
-  preferredExchangeItems String[] @default([])
   expiresAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

@@ -1,6 +1,100 @@
 import prisma from '../config/prisma.js';
 import type { Prisma } from '@prisma/client';
 
+const announcementSelect = {
+  id: true,
+  plantName: true,
+  offerType: true,
+  category: true,
+  size: true,
+  condition: true,
+  careLevel: true,
+  city: true,
+  district: true,
+  description: true,
+  additionalTags: true,
+  pestFree: true,
+  readyToExchange: true,
+  genus: true,
+  family: true,
+  commonName: true,
+  photos: true,
+  coverPhoto: true,
+  wateringFreq: true,
+  lightReqs: true,
+  humidity: true,
+  toxicity: true,
+  growthRate: true,
+  hasOffspring: true,
+  status: true,
+  expiresAt: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+  user: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} as const;
+
+const matchingCandidateSelect = {
+  id: true,
+  plantName: true,
+  offerType: true,
+  category: true,
+  size: true,
+  condition: true,
+  careLevel: true,
+  city: true,
+  district: true,
+  additionalTags: true,
+  pestFree: true,
+  readyToExchange: true,
+  genus: true,
+  family: true,
+  commonName: true,
+  wateringFreq: true,
+  lightReqs: true,
+  humidity: true,
+  toxicity: true,
+  growthRate: true,
+  hasOffspring: true,
+  photos: true,
+  coverPhoto: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+} as const;
+
+const matchingBaseSelect = {
+  id: true,
+  plantName: true,
+  offerType: true,
+  category: true,
+  size: true,
+  condition: true,
+  careLevel: true,
+  city: true,
+  district: true,
+  additionalTags: true,
+  pestFree: true,
+  readyToExchange: true,
+  genus: true,
+  family: true,
+  commonName: true,
+  wateringFreq: true,
+  lightReqs: true,
+  humidity: true,
+  toxicity: true,
+  growthRate: true,
+  hasOffspring: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+} as const;
+
 export const createAnnouncement = async (data: Prisma.AnnouncementCreateInput) => {
   return prisma.announcement.create({ data });
 };
@@ -10,39 +104,7 @@ export const findAnnouncementsExcludingUser = async (userId: string) => {
     where: {
       userId: { not: userId },
     },
-    select: {
-      id: true,
-      plantName: true,
-      offerType: true,
-      category: true,
-      size: true,
-      condition: true,
-      careLevel: true,
-      city: true,
-      district: true,
-      description: true,
-      additionalTags: true,
-      pestFree: true,
-      readyToExchange: true,
-      genus: true,
-      family: true,
-      commonName: true,
-      photos: true,
-      coverPhoto: true,
-      wateringFreq: true,
-      lightReqs: true,
-      humidity: true,
-      toxicity: true,
-      growthRate: true,
-      hasOffspring: true,
-      status: true,
-      preferredExchangeItems: true,
-      expiresAt: true,
-      createdAt: true,
-      updatedAt: true,
-      userId: true,
-      // Не включаємо: user (інформація про користувача) - приватно
-    },
+    select: announcementSelect,
     orderBy: {
       createdAt: 'desc',
     },
@@ -52,38 +114,22 @@ export const findAnnouncementsExcludingUser = async (userId: string) => {
 export const findAnnouncementsByUser = async (userId: string) => {
   return prisma.announcement.findMany({
     where: { userId },
-    select: {
-      id: true,
-      plantName: true,
-      offerType: true,
-      category: true,
-      size: true,
-      condition: true,
-      careLevel: true,
-      city: true,
-      district: true,
-      description: true,
-      additionalTags: true,
-      pestFree: true,
-      readyToExchange: true,
-      genus: true,
-      family: true,
-      commonName: true,
-      photos: true,
-      coverPhoto: true,
-      wateringFreq: true,
-      lightReqs: true,
-      humidity: true,
-      toxicity: true,
-      growthRate: true,
-      hasOffspring: true,
-      status: true,
-      preferredExchangeItems: true,
-      expiresAt: true,
-      createdAt: true,
-      updatedAt: true,
-      userId: true,
+    select: announcementSelect,
+    orderBy: {
+      createdAt: 'desc',
     },
+  });
+};
+
+export const findActiveAnnouncementsByUserForMatching = async (userId: string) => {
+  const now = new Date();
+  return prisma.announcement.findMany({
+    where: {
+      userId,
+      status: 'active',
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    select: matchingBaseSelect,
     orderBy: {
       createdAt: 'desc',
     },
@@ -106,39 +152,7 @@ export const findAnnouncementById = async (id: string, userId: string) => {
 export const findAnnouncementByIdPublic = async (id: string) => {
   return prisma.announcement.findUnique({
     where: { id },
-    select: {
-      id: true,
-      plantName: true,
-      offerType: true,
-      category: true,
-      size: true,
-      condition: true,
-      careLevel: true,
-      city: true,
-      district: true,
-      description: true,
-      additionalTags: true,
-      pestFree: true,
-      readyToExchange: true,
-      genus: true,
-      family: true,
-      commonName: true,
-      photos: true,
-      coverPhoto: true,
-      wateringFreq: true,
-      lightReqs: true,
-      humidity: true,
-      toxicity: true,
-      growthRate: true,
-      hasOffspring: true,
-      status: true,
-      preferredExchangeItems: true,
-      expiresAt: true,
-      createdAt: true,
-      updatedAt: true,
-      userId: true,
-      // НЕ включаємо user (приватні дані користувача)
-    },
+    select: announcementSelect,
   });
 };
 
@@ -174,6 +188,38 @@ export const countActiveAnnouncements = async (userId: string) => {
         { expiresAt: null },
         { expiresAt: { gt: new Date() } },
       ],
+    },
+  });
+};
+
+export const countAnnouncementsByUser = async (userId: string) => {
+  return prisma.announcement.count({
+    where: {
+      userId,
+    },
+  });
+};
+
+export const findMatchingCandidates = async (params: {
+  userId: string;
+  category: string;
+  offerType: string | string[];
+}) => {
+  const now = new Date();
+  const offerTypeFilter = Array.isArray(params.offerType)
+    ? { in: params.offerType }
+    : params.offerType;
+  return prisma.announcement.findMany({
+    where: {
+      userId: { not: params.userId },
+      category: params.category,
+      offerType: offerTypeFilter,
+      status: 'active',
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    select: matchingCandidateSelect,
+    orderBy: {
+      createdAt: 'desc',
     },
   });
 };
