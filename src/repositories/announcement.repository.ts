@@ -35,6 +35,7 @@ const announcementSelect = {
     select: {
       id: true,
       name: true,
+      avatar: true,
     },
   },
 } as const;
@@ -66,6 +67,13 @@ const matchingCandidateSelect = {
   createdAt: true,
   updatedAt: true,
   userId: true,
+  user: {
+    select: {
+      id: true,
+      name: true,
+      avatar: true,
+    },
+  },
 } as const;
 
 const matchingBaseSelect = {
@@ -222,4 +230,90 @@ export const findMatchingCandidates = async (params: {
       createdAt: 'desc',
     },
   });
+};
+
+const buildSearchWhere = (params: {
+  query?: string;
+  city?: string;
+  district?: string;
+  offerType?: string;
+  status?: string;
+  plantName?: string;
+}) => {
+  const andFilters: any[] = [];
+
+  if (params.query) {
+    const queryFilter = params.query;
+    andFilters.push({
+      OR: [
+        { plantName: { contains: queryFilter, mode: 'insensitive' } },
+        { commonName: { contains: queryFilter, mode: 'insensitive' } },
+        { genus: { contains: queryFilter, mode: 'insensitive' } },
+        { family: { contains: queryFilter, mode: 'insensitive' } },
+        { description: { contains: queryFilter, mode: 'insensitive' } },
+      ],
+    });
+  }
+
+  if (params.plantName) {
+    andFilters.push({ plantName: { contains: params.plantName, mode: 'insensitive' } });
+  }
+
+  if (params.city) {
+    andFilters.push({ city: { contains: params.city, mode: 'insensitive' } });
+  }
+
+  if (params.district) {
+    andFilters.push({ district: { contains: params.district, mode: 'insensitive' } });
+  }
+
+  if (params.offerType) {
+    andFilters.push({ offerType: params.offerType });
+  }
+
+  if (params.status) {
+    andFilters.push({ status: params.status });
+  }
+
+  if (andFilters.length === 0) {
+    return {};
+  }
+
+  return { AND: andFilters };
+};
+
+export const searchAnnouncements = async (params: {
+  query?: string;
+  city?: string;
+  district?: string;
+  offerType?: string;
+  status?: string;
+  plantName?: string;
+  limit: number;
+  page: number;
+  sortBy: 'createdAt' | 'updatedAt' | 'plantName';
+  sortOrder: 'asc' | 'desc';
+}) => {
+  const where = buildSearchWhere(params);
+  const skip = (params.page - 1) * params.limit;
+
+  return prisma.announcement.findMany({
+    where,
+    select: announcementSelect,
+    orderBy: { [params.sortBy]: params.sortOrder },
+    skip,
+    take: params.limit,
+  });
+};
+
+export const countSearchAnnouncements = async (params: {
+  query?: string;
+  city?: string;
+  district?: string;
+  offerType?: string;
+  status?: string;
+  plantName?: string;
+}) => {
+  const where = buildSearchWhere(params);
+  return prisma.announcement.count({ where });
 };

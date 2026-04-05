@@ -23,6 +23,12 @@ model User {
   updatedAt       DateTime  @updatedAt
   tokens          Token[]
   announcements   Announcement[]
+  sentMessages    Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  initiatedExchanges Exchange[] @relation("ExchangeInitiator")
+  receivedExchanges  Exchange[] @relation("ExchangeReceiver")
+  ratingsGiven       Rating[]   @relation("RatingFromUser")
+  ratingsReceived    Rating[]   @relation("RatingToUser")
 }
 
 model Token {
@@ -66,4 +72,67 @@ model Announcement {
   expiresAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  messages        Message[]
+  exchanges       Exchange[]
+}
+
+enum ExchangeStatus {
+  pending
+  accepted
+  completed
+  cancelled
+}
+
+model Exchange {
+  id             String         @id @default(uuid())
+  initiatorId    String
+  receiverId     String
+  announcementId String
+  status         ExchangeStatus @default(pending)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  completedAt    DateTime?
+  initiator      User           @relation("ExchangeInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  receiver       User           @relation("ExchangeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  announcement   Announcement   @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  ratings        Rating[]
+
+  @@index([initiatorId, receiverId])
+  @@index([receiverId, initiatorId])
+  @@index([announcementId])
+  @@unique([initiatorId, receiverId, announcementId])
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  exchangeId String
+  fromUserId String
+  toUserId   String
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  exchange   Exchange @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  fromUser   User     @relation("RatingFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User     @relation("RatingToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([exchangeId, fromUserId])
+  @@index([toUserId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  senderId       String
+  receiverId     String
+  announcementId String?
+  content        String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  readAt         DateTime?
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  announcement   Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, senderId])
+  @@index([announcementId])
 }

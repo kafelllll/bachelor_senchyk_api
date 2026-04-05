@@ -46,6 +46,19 @@ export const getAnnouncements = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+export const searchAnnouncements = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = getUserIdOrUnauthorized(req, res);
+    if (!userId) return;
+
+    const result = await announcementService.searchAnnouncements(req.query as any);
+    res.status(200).json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('Search announcements error:', error?.message);
+    respondServerError(res, 'Failed to search announcements', error);
+  }
+};
+
 export const getMyAnnouncements = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = getUserIdOrUnauthorized(req, res);

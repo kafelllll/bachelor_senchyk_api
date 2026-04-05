@@ -1,4 +1,6 @@
 import * as announcementRepository from '../repositories/announcement.repository.js';
+import * as ratingRepository from '../repositories/rating.repository.js';
+import { getUserStatsMap } from './userStats.service.js';
 
 type MatchLevel = 'high' | 'medium' | 'low';
 
@@ -29,6 +31,11 @@ type MatchCandidate = {
   createdAt: Date;
   updatedAt: Date;
   userId: string;
+  user?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  } | null;
   reputationScore?: number | null;
 };
 
@@ -64,6 +71,7 @@ type WeightMap = Record<string, number>;
 type WeightedScore = {
   score: number;
   matchLevel: MatchLevel;
+  reputationContribution: number;
 };
 
 type ScoreParts = {
@@ -265,8 +273,9 @@ const scoreMatch = (base: MatchBase, candidate: MatchCandidate): WeightedScore =
 
   const score = Number((rawScore * 100).toFixed(2));
   const matchLevel: MatchLevel = score > 80 ? 'high' : score >= 50 ? 'medium' : 'low';
+  const reputationContribution = Number((MATCH_WEIGHTS.reputationScore * scores.reputationScore * 100).toFixed(2));
 
-  return { score, matchLevel };
+  return { score, matchLevel, reputationContribution };
 };
 
 const buildScoredMatches = (base: MatchBase, candidates: MatchCandidate[]) => {
@@ -277,10 +286,53 @@ const buildScoredMatches = (base: MatchBase, candidates: MatchCandidate[]) => {
       return {
         ...candidate,
         ...scored,
+        matchScore: scored.score,
       };
     })
     .filter((candidate) => candidate.score >= MIN_MATCH_SCORE)
     .sort((a, b) => b.score - a.score);
+};
+
+const attachReputationScores = async (candidates: MatchCandidate[]) => {
+  const userIds = Array.from(new Set(candidates.map((candidate) => candidate.userId)));
+  if (userIds.length === 0) {
+    return candidates;
+  }
+
+  const ratingMap = new Map<string, number>();
+  try {
+    const ratings = await ratingRepository.getAverageRatingsByUserIds(userIds);
+    type RatingRow = Awaited<ReturnType<typeof ratingRepository.getAverageRatingsByUserIds>>[number];
+    ratings.forEach((row: RatingRow) => {
+      if (row._avg.score !== null) {
+        ratingMap.set(row.toUserId, row._avg.score);
+      }
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[matches] reputation lookup failed:', (error as Error)?.message ?? error);
+    }
+  }
+
+  return candidates.map((candidate) => ({
+    ...candidate,
+    reputationScore: ratingMap.get(candidate.userId) ?? null,
+  }));
+};
+
+const attachUserRatings = async (candidates: MatchCandidate[]) => {
+  const statsMap = await getUserStatsMap(candidates.map((candidate) => candidate.userId));
+  return candidates.map((candidate) => {
+    if (!candidate.user) return candidate;
+    const stats = statsMap.get(candidate.userId);
+    return {
+      ...candidate,
+      user: {
+        ...candidate.user,
+        ...(stats ? { rating: stats } : {}),
+      },
+    };
+  });
 };
 
 const toMatchBase = (baseAnnouncement: any): MatchBase => ({
@@ -330,6 +382,9 @@ export const getAnnouncementMatches = async (userId: string, announcementId: str
     offerType: getOfferTypeVariants(oppositeOfferType),
   });
 
+  const candidatesWithReputation = await attachReputationScores(candidates as MatchCandidate[]);
+  const candidatesWithRatings = await attachUserRatings(candidatesWithReputation as MatchCandidate[]);
+
   if (shouldLog) {
     const offerTypes = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.offerType)));
     const categories = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.category)));
@@ -343,7 +398,7 @@ export const getAnnouncementMatches = async (userId: string, announcementId: str
   }
 
   const base = toMatchBase(baseAnnouncement);
-  return buildScoredMatches(base, candidates as MatchCandidate[]);
+  return buildScoredMatches(base, candidatesWithRatings as MatchCandidate[]);
 };
 
 export const getUserAnnouncementMatches = async (userId: string) => {
@@ -371,6 +426,9 @@ export const getUserAnnouncementMatches = async (userId: string) => {
       offerType: getOfferTypeVariants(oppositeOfferType),
     });
 
+    const candidatesWithReputation = await attachReputationScores(candidates as MatchCandidate[]);
+    const candidatesWithRatings = await attachUserRatings(candidatesWithReputation as MatchCandidate[]);
+
     if (shouldLog) {
       const offerTypes = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.offerType)));
       const categories = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.category)));
@@ -384,7 +442,7 @@ export const getUserAnnouncementMatches = async (userId: string) => {
     }
 
     const base = toMatchBase(baseAnnouncement);
-    const scored = buildScoredMatches(base, candidates as MatchCandidate[]);
+    const scored = buildScoredMatches(base, candidatesWithRatings as MatchCandidate[]);
 
     for (const match of scored) {
       const existing = bestByCandidateId.get(match.id);

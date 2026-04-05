@@ -421,3 +421,18 @@ export const updateAnnouncementSchema = z.object({
     path: ['offerType'],
   }),
 });
+
+export const searchAnnouncementSchema = z.object({
+  query: z.object({
+    query: z.string().trim().min(1).max(100).optional(),
+    city: z.string().trim().min(1).max(80).optional(),
+    district: z.string().trim().min(1).max(80).optional(),
+    offerType: z.enum(offerTypeValues).optional(),
+    status: z.enum(statusValues).optional(),
+    plantName: z.string().trim().min(1).max(100).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    page: z.coerce.number().int().min(1).max(10_000).optional(),
+    sortBy: z.enum(['createdAt', 'updatedAt', 'plantName']).optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+  }),
+});

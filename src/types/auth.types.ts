@@ -1,4 +1,5 @@
 import { registerSchema, loginSchema } from '../validations/auth.validation.js';
+import type { z } from 'zod';
 
-export type RegisterUserInput = typeof registerSchema.shape.body._type;
-export type LoginUserInput = typeof loginSchema.shape.body._type;
+export type RegisterUserInput = z.infer<typeof registerSchema>['body'];
+export type LoginUserInput = z.infer<typeof loginSchema>['body'];

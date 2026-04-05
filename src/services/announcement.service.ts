@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import * as announcementRepository from '../repositories/announcement.repository.js';
-import type { CreateAnnouncementInput, UpdateAnnouncementInput } from '../types/announcement.types.js';
+import type { CreateAnnouncementInput, UpdateAnnouncementInput, SearchAnnouncementQuery } from '../types/announcement.types.js';
+import { getUserStatsMap } from './userStats.service.js';
 
 const hasPlantFields = (value: unknown): value is Record<string, unknown> => {
   if (!value || typeof value !== 'object') {
@@ -256,12 +257,72 @@ export const createAnnouncement = async (userId: string, data: CreateAnnouncemen
   return announcementRepository.createAnnouncement(payload);
 };
 
+const attachUserStats = async <T extends { user?: { id: string } | null }>(items: T[]) => {
+  const userIds = items.map((item) => item.user?.id).filter((id): id is string => Boolean(id));
+  const statsMap = await getUserStatsMap(userIds);
+  return items.map((item) => {
+    if (!item.user) return item;
+    const stats = statsMap.get(item.user.id);
+    return {
+      ...item,
+      user: {
+        ...item.user,
+        ...(stats ? { rating: stats } : {}),
+      },
+    };
+  });
+};
+
 export const getAnnouncementsForFeed = async (userId: string) => {
-  return announcementRepository.findAnnouncementsExcludingUser(userId);
+  const announcements = await announcementRepository.findAnnouncementsExcludingUser(userId);
+  return attachUserStats(announcements);
+};
+
+export const searchAnnouncements = async (query: SearchAnnouncementQuery) => {
+  const limit = Math.min(query.limit ?? 20, 100);
+  const page = Math.max(query.page ?? 1, 1);
+  const sortBy = query.sortBy ?? 'createdAt';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const [items, total] = await Promise.all([
+    announcementRepository.searchAnnouncements({
+      query: query.query,
+      city: query.city,
+      district: query.district,
+      offerType: query.offerType,
+      status: query.status,
+      plantName: query.plantName,
+      limit,
+      page,
+      sortBy,
+      sortOrder,
+    }),
+    announcementRepository.countSearchAnnouncements({
+      query: query.query,
+      city: query.city,
+      district: query.district,
+      offerType: query.offerType,
+      status: query.status,
+      plantName: query.plantName,
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  const itemsWithStats = await attachUserStats(items);
+
+  return {
+    items: itemsWithStats,
+    page,
+    limit,
+    total,
+    totalPages,
+  };
 };
 
 export const getAnnouncementsForUser = async (userId: string) => {
-  return announcementRepository.findAnnouncementsByUser(userId);
+  const announcements = await announcementRepository.findAnnouncementsByUser(userId);
+  return attachUserStats(announcements);
 };
 
 export const getAnnouncementById = async (userId: string, announcementId: string) => {
@@ -272,7 +333,10 @@ export const getAnnouncementById = async (userId: string, announcementId: string
  * Отримує оглошення за ID без перевірки користувача (публічний доступ)
  */
 export const getAnnouncementByIdPublic = async (announcementId: string) => {
-  return announcementRepository.findAnnouncementByIdPublic(announcementId);
+  const announcement = await announcementRepository.findAnnouncementByIdPublic(announcementId);
+  if (!announcement) return announcement;
+  const enriched = await attachUserStats([announcement]);
+  return enriched[0];
 };
 
 export const deleteAnnouncement = async (userId: string, announcementId: string) => {
