@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import * as announcementRepository from '../repositories/announcement.repository.js';
 import type { CreateAnnouncementInput, UpdateAnnouncementInput, SearchAnnouncementQuery } from '../types/announcement.types.js';
+import { analyzeAnnouncementQuery } from '../utils/searchNlp.js';
 import { getUserStatsMap } from './userStats.service.js';
 
 const hasPlantFields = (value: unknown): value is Record<string, unknown> => {
@@ -284,26 +285,45 @@ export const searchAnnouncements = async (query: SearchAnnouncementQuery) => {
   const sortBy = query.sortBy ?? 'createdAt';
   const sortOrder = query.sortOrder ?? 'desc';
 
+  const nlp = analyzeAnnouncementQuery(query.query ?? null);
+  const normalizedQuery = nlp.normalizedQuery ?? undefined;
+  const inferredOfferType = query.offerType ?? (nlp.offerType ?? undefined);
+  const inferredCategory = query.category ?? (nlp.category ?? undefined);
+  const inferredSize = query.size ?? (nlp.size ?? undefined);
+  const inferredCondition = query.condition ?? (nlp.condition ?? undefined);
+  const inferredCareLevel = query.careLevel ?? (nlp.careLevel ?? undefined);
+  const inferredCity = query.city ?? (nlp.city ?? undefined);
+  const inferredDistrict = query.district ?? (nlp.district ?? undefined);
+  const statusFilter = query.status ?? 'active';
+
   const [items, total] = await Promise.all([
     announcementRepository.searchAnnouncements({
-      query: query.query,
-      city: query.city,
-      district: query.district,
-      offerType: query.offerType,
-      status: query.status,
-      plantName: query.plantName,
+      ...(normalizedQuery !== undefined ? { query: normalizedQuery } : {}),
+      ...(inferredCategory !== undefined ? { category: inferredCategory } : {}),
+      ...(inferredSize !== undefined ? { size: inferredSize } : {}),
+      ...(inferredCondition !== undefined ? { condition: inferredCondition } : {}),
+      ...(inferredCareLevel !== undefined ? { careLevel: inferredCareLevel } : {}),
+      ...(inferredCity !== undefined ? { city: inferredCity } : {}),
+      ...(inferredDistrict !== undefined ? { district: inferredDistrict } : {}),
+      ...(inferredOfferType !== undefined ? { offerType: inferredOfferType } : {}),
+      ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+      ...(query.plantName !== undefined ? { plantName: query.plantName } : {}),
       limit,
       page,
       sortBy,
       sortOrder,
     }),
     announcementRepository.countSearchAnnouncements({
-      query: query.query,
-      city: query.city,
-      district: query.district,
-      offerType: query.offerType,
-      status: query.status,
-      plantName: query.plantName,
+      ...(normalizedQuery !== undefined ? { query: normalizedQuery } : {}),
+      ...(inferredCategory !== undefined ? { category: inferredCategory } : {}),
+      ...(inferredSize !== undefined ? { size: inferredSize } : {}),
+      ...(inferredCondition !== undefined ? { condition: inferredCondition } : {}),
+      ...(inferredCareLevel !== undefined ? { careLevel: inferredCareLevel } : {}),
+      ...(inferredCity !== undefined ? { city: inferredCity } : {}),
+      ...(inferredDistrict !== undefined ? { district: inferredDistrict } : {}),
+      ...(inferredOfferType !== undefined ? { offerType: inferredOfferType } : {}),
+      ...(statusFilter !== undefined ? { status: statusFilter } : {}),
+      ...(query.plantName !== undefined ? { plantName: query.plantName } : {}),
     }),
   ]);
 

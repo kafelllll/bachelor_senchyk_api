@@ -10,7 +10,7 @@ const lightReqsValues = ['bright', 'partial', 'shade'] as const;
 const humidityValues = ['low', 'medium', 'high'] as const;
 const toxicityValues = ['non-toxic', 'slightly-toxic', 'toxic'] as const;
 const growthRateValues = ['slow', 'moderate', 'fast'] as const;
-const statusValues = ['active', 'pending', 'rejected', 'archived'] as const;
+const statusValues = ['active', 'pending', 'rejected', 'inactive'] as const;
 
 // P0: Security - Sanitization helpers
 const isWhitespaceOnly = (str: string) => str.trim().length === 0;
@@ -425,6 +425,10 @@ export const updateAnnouncementSchema = z.object({
 export const searchAnnouncementSchema = z.object({
   query: z.object({
     query: z.string().trim().min(1).max(100).optional(),
+    category: z.enum(categoryValues).optional(),
+    size: z.enum(sizeValues).optional(),
+    condition: z.enum(conditionValues).optional(),
+    careLevel: z.enum(careLevelValues).optional(),
     city: z.string().trim().min(1).max(80).optional(),
     district: z.string().trim().min(1).max(80).optional(),
     offerType: z.enum(offerTypeValues).optional(),

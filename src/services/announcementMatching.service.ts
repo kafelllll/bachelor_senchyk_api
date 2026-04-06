@@ -1,6 +1,7 @@
 import * as announcementRepository from '../repositories/announcement.repository.js';
 import * as ratingRepository from '../repositories/rating.repository.js';
 import { getUserStatsMap } from './userStats.service.js';
+import { logger } from '../utils/logger.js';
 
 type MatchLevel = 'high' | 'medium' | 'low';
 
@@ -310,7 +311,7 @@ const attachReputationScores = async (candidates: MatchCandidate[]) => {
     });
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn('[matches] reputation lookup failed:', (error as Error)?.message ?? error);
+      logger.warn('Reputation lookup failed', { error });
     }
   }
 
@@ -388,13 +389,17 @@ export const getAnnouncementMatches = async (userId: string, announcementId: str
   if (shouldLog) {
     const offerTypes = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.offerType)));
     const categories = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.category)));
-    console.log('[matches] base announcement:', {
+    logger.debug('Match base announcement', {
       id: baseAnnouncement.id,
       offerType: baseAnnouncement.offerType,
       category: baseAnnouncement.category,
     });
-    console.log('[matches] normalized offer:', normalizedOfferType, 'opposite:', oppositeOfferType);
-    console.log('[matches] candidates count:', candidates.length, 'offerTypes:', offerTypes, 'categories:', categories);
+    logger.debug('Match normalized offer', { normalizedOfferType, oppositeOfferType });
+    logger.debug('Match candidates summary', {
+      count: candidates.length,
+      offerTypes,
+      categories,
+    });
   }
 
   const base = toMatchBase(baseAnnouncement);
@@ -405,7 +410,7 @@ export const getUserAnnouncementMatches = async (userId: string) => {
   const baseAnnouncements = await announcementRepository.findActiveAnnouncementsByUserForMatching(userId);
   const shouldLog = process.env.NODE_ENV === 'development';
   if (shouldLog) {
-    console.log('[recommendations] base announcements count:', baseAnnouncements.length);
+    logger.debug('Recommendations base announcements count', { count: baseAnnouncements.length });
   }
   if (baseAnnouncements.length === 0) {
     return [];
@@ -432,13 +437,17 @@ export const getUserAnnouncementMatches = async (userId: string) => {
     if (shouldLog) {
       const offerTypes = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.offerType)));
       const categories = Array.from(new Set(candidates.map((candidate: MatchCandidate) => candidate.category)));
-      console.log('[recommendations] base announcement:', {
+      logger.debug('Recommendations base announcement', {
         id: (baseAnnouncement as any).id,
         offerType: baseAnnouncement.offerType,
         category: baseAnnouncement.category,
       });
-      console.log('[recommendations] normalized offer:', normalizedOfferType, 'opposite:', oppositeOfferType);
-      console.log('[recommendations] candidates count:', candidates.length, 'offerTypes:', offerTypes, 'categories:', categories);
+      logger.debug('Recommendations normalized offer', { normalizedOfferType, oppositeOfferType });
+      logger.debug('Recommendations candidates summary', {
+        count: candidates.length,
+        offerTypes,
+        categories,
+      });
     }
 
     const base = toMatchBase(baseAnnouncement);

@@ -76,6 +76,7 @@ export const getConversations = async (userId: string, query: GetConversationsQu
   const conversations = [] as Array<{
     participant: { id: string; name: string; avatar: string | null };
     announcementId: string | null;
+    announcement: { id: string; plantName: string } | null;
     lastMessage: typeof recentMessages[number];
     unreadCount: number;
   }>;
@@ -92,6 +93,7 @@ export const getConversations = async (userId: string, query: GetConversationsQu
     conversations.push({
       participant,
       announcementId: message.announcementId ?? null,
+      announcement: message.announcement ?? null,
       lastMessage: message,
       unreadCount: unreadMap.get(key) ?? 0,
     });

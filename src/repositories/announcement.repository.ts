@@ -108,9 +108,12 @@ export const createAnnouncement = async (data: Prisma.AnnouncementCreateInput) =
 };
 
 export const findAnnouncementsExcludingUser = async (userId: string) => {
+  const now = new Date();
   return prisma.announcement.findMany({
     where: {
       userId: { not: userId },
+      status: 'active',
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
     select: announcementSelect,
     orderBy: {
@@ -183,6 +186,13 @@ export const updateAnnouncementById = async (id: string, userId: string, data: P
   });
 };
 
+export const updateAnnouncementStatusById = async (id: string, status: string) => {
+  return prisma.announcement.updateMany({
+    where: { id },
+    data: { status },
+  });
+};
+
 /**
  * Підраховує кількість активних оглошень користувача
  * Активні = статус 'active' та не закінчилося (expiresAt > now або expiresAt null)
@@ -234,6 +244,10 @@ export const findMatchingCandidates = async (params: {
 
 const buildSearchWhere = (params: {
   query?: string;
+  category?: string;
+  size?: string;
+  condition?: string;
+  careLevel?: string;
   city?: string;
   district?: string;
   offerType?: string;
@@ -257,6 +271,22 @@ const buildSearchWhere = (params: {
 
   if (params.plantName) {
     andFilters.push({ plantName: { contains: params.plantName, mode: 'insensitive' } });
+  }
+
+  if (params.category) {
+    andFilters.push({ category: params.category });
+  }
+
+  if (params.size) {
+    andFilters.push({ size: params.size });
+  }
+
+  if (params.condition) {
+    andFilters.push({ condition: params.condition });
+  }
+
+  if (params.careLevel) {
+    andFilters.push({ careLevel: params.careLevel });
   }
 
   if (params.city) {
@@ -284,6 +314,10 @@ const buildSearchWhere = (params: {
 
 export const searchAnnouncements = async (params: {
   query?: string;
+  category?: string;
+  size?: string;
+  condition?: string;
+  careLevel?: string;
   city?: string;
   district?: string;
   offerType?: string;
@@ -308,6 +342,10 @@ export const searchAnnouncements = async (params: {
 
 export const countSearchAnnouncements = async (params: {
   query?: string;
+  category?: string;
+  size?: string;
+  condition?: string;
+  careLevel?: string;
   city?: string;
   district?: string;
   offerType?: string;

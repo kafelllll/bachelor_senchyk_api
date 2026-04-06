@@ -16,7 +16,6 @@ model User {
   bio             String?
   emailVerified   Boolean   @default(false)
   emailVerifiedAt DateTime?
-  role            String    @default("user")
   termsAccepted   Boolean   @default(false)
   termsAcceptedAt DateTime?
   createdAt       DateTime  @default(now())

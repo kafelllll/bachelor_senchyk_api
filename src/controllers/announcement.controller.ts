@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import * as announcementService from '../services/announcement.service.js';
 import * as announcementMatchingService from '../services/announcementMatching.service.js';
+import { logger } from '../utils/logger.js';
 
 const respondUnauthorized = (res: Response): null => {
   res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -41,7 +42,7 @@ export const getAnnouncements = async (req: AuthRequest, res: Response): Promise
     const announcements = await announcementService.getAnnouncementsForFeed(userId);
     res.status(200).json({ success: true, announcements });
   } catch (error: any) {
-    console.error('Get announcements error:', error?.message);
+    logger.error('Get announcements error', { error });
     respondServerError(res, 'Failed to fetch announcements', error);
   }
 };
@@ -54,7 +55,7 @@ export const searchAnnouncements = async (req: AuthRequest, res: Response): Prom
     const result = await announcementService.searchAnnouncements(req.query as any);
     res.status(200).json({ success: true, ...result });
   } catch (error: any) {
-    console.error('Search announcements error:', error?.message);
+    logger.error('Search announcements error', { error });
     respondServerError(res, 'Failed to search announcements', error);
   }
 };
@@ -67,7 +68,7 @@ export const getMyAnnouncements = async (req: AuthRequest, res: Response): Promi
     const announcements = await announcementService.getAnnouncementsForUser(userId);
     res.status(200).json({ success: true, announcements });
   } catch (error: any) {
-    console.error('Get my announcements error:', error?.message);
+    logger.error('Get my announcements error', { error });
     respondServerError(res, 'Failed to fetch your announcements', error);
   }
 };
@@ -90,7 +91,7 @@ export const getAnnouncement = async (req: AuthRequest, res: Response): Promise<
 
     res.status(200).json({ success: true, announcement });
   } catch (error: any) {
-    console.error('Get announcement error:', error?.message);
+    logger.error('Get announcement error', { error });
     respondServerError(res, 'Failed to fetch announcement', error);
   }
 };
@@ -116,7 +117,7 @@ export const createAnnouncement = async (req: AuthRequest, res: Response): Promi
     const announcement = await announcementService.createAnnouncement(userId, req.body);
     res.status(201).json({ success: true, announcement });
   } catch (error: any) {
-    console.error('Create announcement error:', error?.message);
+    logger.error('Create announcement error', { error });
     respondServerError(res, 'Failed to create announcement', error);
   }
 };
@@ -157,7 +158,7 @@ export const deleteAnnouncement = async (req: AuthRequest, res: Response): Promi
 
     res.status(200).json({ success: true });
   } catch (error: any) {
-    console.error('Delete announcement error:', error?.message);
+    logger.error('Delete announcement error', { error });
     respondServerError(res, 'Failed to delete announcement', error);
   }
 };
@@ -193,7 +194,7 @@ export const updateAnnouncement = async (req: AuthRequest, res: Response): Promi
     const updatedAnnouncement = await announcementService.getAnnouncementByIdPublic(announcementId);
     res.status(200).json({ success: true, announcement: updatedAnnouncement });
   } catch (error: any) {
-    console.error('Update announcement error:', error?.message);
+    logger.error('Update announcement error', { error });
     respondServerError(res, 'Failed to update announcement', error);
   }
 };
@@ -214,7 +215,7 @@ export const getAnnouncementMatches = async (req: AuthRequest, res: Response): P
 
     res.status(200).json({ success: true, matches });
   } catch (error: any) {
-    console.error('Get announcement matches error:', error?.message);
+    logger.error('Get announcement matches error', { error });
     respondServerError(res, 'Failed to fetch announcement matches', error);
   }
 };
@@ -227,7 +228,7 @@ export const getUserAnnouncementMatches = async (req: AuthRequest, res: Response
     const matches = await announcementMatchingService.getUserAnnouncementMatches(userId);
     res.status(200).json({ success: true, matches });
   } catch (error: any) {
-    console.error('Get user announcement matches error:', error?.message);
+    logger.error('Get user announcement matches error', { error });
     respondServerError(res, 'Failed to fetch recommendations', error);
   }
 };

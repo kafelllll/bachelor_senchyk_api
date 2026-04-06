@@ -36,3 +36,9 @@ export const deleteAllUserTokens = async (userId: string) => {
     where: { userId },
   });
 };
+
+export const deleteTokensByUserIdAndType = async (userId: string, type = 'auth') => {
+  return prisma.token.deleteMany({
+    where: { userId, type },
+  });
+};

@@ -9,6 +9,12 @@ const messageSelect = {
   createdAt: true,
   updatedAt: true,
   readAt: true,
+  announcement: {
+    select: {
+      id: true,
+      plantName: true,
+    },
+  },
   sender: {
     select: {
       id: true,

@@ -5,7 +5,6 @@ import * as tokenRepository from '../repositories/token.repository.js';
 export interface JwtPayload {
   id: string;
   email: string;
-  role: string;
 }
 
 // Extending express Request to include user

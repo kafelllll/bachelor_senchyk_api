@@ -54,11 +54,10 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 
   try {
     const { user, token: authToken } = await authService.verifyEmail(token);
-    const redirectBase = process.env.FRONTEND_URL;
-    if (redirectBase) {
-      const redirectUrl = new URL(redirectBase);
-      redirectUrl.searchParams.set('token', authToken);
-      redirectUrl.searchParams.set('verified', 'true');
+    const frontendBase = process.env.FRONTEND_URL;
+    if (frontendBase) {
+      const redirectUrl = new URL(`${frontendBase}/verify-email`);
+      redirectUrl.searchParams.set('token', token);
       res.redirect(302, redirectUrl.toString());
       return;
     }
@@ -70,6 +69,54 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     }
     if (error.message === 'Verification token expired') {
       res.status(410).json({ success: false, message: error.message });
+      return;
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const verifyEmailFromBody = async (req: Request, res: Response): Promise<void> => {
+  const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+  const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+  const verificationValue = token || code;
+  if (!verificationValue) {
+    res.status(400).json({ success: false, message: 'Verification token is required' });
+    return;
+  }
+
+  try {
+    const { user, token: authToken } = await authService.verifyEmail(verificationValue);
+    res.status(200).json({ success: true, message: 'Email verified', token: authToken, user });
+  } catch (error: any) {
+    if (error.message === 'Invalid verification token') {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+    if (error.message === 'Verification token expired') {
+      res.status(410).json({ success: false, message: error.message });
+      return;
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const resendVerificationEmail = async (req: Request, res: Response): Promise<void> => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+  if (!email) {
+    res.status(400).json({ success: false, message: 'Email is required' });
+    return;
+  }
+
+  try {
+    const result = await authService.resendVerificationEmail(email);
+    if (result.status === 'already_verified') {
+      res.status(200).json({ success: true, message: 'Email already verified' });
+      return;
+    }
+    res.status(200).json({ success: true, message: 'Verification email sent' });
+  } catch (error: any) {
+    if (error.message === 'SMTP configuration is incomplete') {
+      res.status(500).json({ success: false, message: 'Server misconfiguration' });
       return;
     }
     res.status(500).json({ success: false, message: 'Server error' });

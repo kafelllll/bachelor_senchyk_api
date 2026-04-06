@@ -92,11 +92,17 @@ export const updateExchangeStatus = async (
   }
 
   const completedAt = nextStatus === 'completed' ? new Date() : null;
-  return exchangeRepository.updateExchangeStatus({
+  const updated = await exchangeRepository.updateExchangeStatus({
     id: exchangeId,
     status: nextStatus,
     completedAt,
   });
+
+  if (nextStatus === 'completed') {
+    await announcementRepository.updateAnnouncementStatusById(updated.announcementId, 'inactive');
+  }
+
+  return updated;
 };
 
 export const getMyExchanges = async (userId: string) => {

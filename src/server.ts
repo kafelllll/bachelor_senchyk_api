@@ -12,6 +12,8 @@ import messageRoutes from './routes/message.routes.js';
 import exchangeRoutes from './routes/exchange.routes.js';
 import ratingRoutes from './routes/rating.routes.js';
 import { normalizeRequestStrings } from './middlewares/normalize.middleware.js';
+import { errorHandler } from './middlewares/error.middleware.js';
+import { logger } from './utils/logger.js';
 import { initSocketServer } from './realtime/socket.js';
 
 const app = express();
@@ -35,9 +37,11 @@ app.get('/', (req, res) => {
   res.send('Працює на TypeScript!');
 });
 
+app.use(errorHandler);
+
 const server = createServer(app);
 initSocketServer(server);
 
 server.listen(PORT, () => {
-  console.log(`Server: http://localhost:${PORT}`);
+  logger.info('Server started', { url: `http://localhost:${PORT}` });
 });

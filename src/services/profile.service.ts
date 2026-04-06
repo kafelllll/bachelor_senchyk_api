@@ -123,6 +123,6 @@ export const updateMyProfile = async (userId: string, data: UpdateProfileInput) 
 };
 
 export const deleteMyAccount = async (userId: string) => {
-  await userRepository.deleteUserById(userId);
+  await userRepository.deleteUserCascade(userId);
   return true;
 };

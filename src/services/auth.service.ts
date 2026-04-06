@@ -15,7 +15,6 @@ type AuthUserRecord = {
   city?: string | null;
   bio?: string | null;
   passwordHash: string;
-  role: string;
   emailVerified: boolean;
   emailVerifiedAt: Date | null;
   termsAccepted: boolean;
@@ -31,7 +30,6 @@ const toSafeUser = (user: AuthUserRecord) => ({
   avatar: user.avatar ?? null,
   city: user.city ?? null,
   bio: user.bio ?? null,
-  role: user.role,
   emailVerified: user.emailVerified,
   termsAccepted: user.termsAccepted,
   createdAt: user.createdAt,
@@ -39,6 +37,19 @@ const toSafeUser = (user: AuthUserRecord) => ({
 
 const getBackendUrl = () => {
   return process.env.BACKEND_URL || 'http://localhost:3000';
+};
+
+const getFrontendVerifyUrl = (token: string) => {
+  const frontendBase = process.env.FRONTEND_URL;
+  if (!frontendBase) {
+    return `${getBackendUrl()}/auth/verify-email?token=${token}`;
+  }
+  return `${frontendBase}/verify-email?token=${token}`;
+};
+
+const generateVerificationCode = () => {
+  const code = crypto.randomInt(0, 1000000);
+  return code.toString().padStart(6, '0');
 };
 
 export const registerUser = async (data: RegisterUserInput) => {
@@ -53,19 +64,18 @@ export const registerUser = async (data: RegisterUserInput) => {
     passwordHash: hashedPassword,
     emailVerified: false,
     emailVerifiedAt: null,
-    role: 'user', // Default role
     termsAccepted: data.termsAccepted,
     termsAcceptedAt: data.termsAccepted ? new Date() : null,
   } as unknown as Prisma.UserCreateInput;
 
   const createdUser = (await userRepository.createUser(newUser)) as unknown as AuthUserRecord;
 
-  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const verificationToken = generateVerificationCode();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await tokenRepository.saveToken(createdUser.id, verificationToken, 'email_verification', expiresAt);
 
-  const verifyUrl = `${getBackendUrl()}/auth/verify-email?token=${verificationToken}`;
-  await sendVerificationEmail(createdUser.email, verifyUrl);
+  const verifyUrl = getFrontendVerifyUrl(verificationToken);
+  await sendVerificationEmail(createdUser.email, verifyUrl, verificationToken);
 
   return {
     user: toSafeUser(createdUser),
@@ -81,7 +91,7 @@ export const loginUser = async (data: LoginUserInput) => {
   const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash);
   if (!isPasswordValid) throw new Error('Invalid credentials');
 
-  const token = generateToken({ id: user.id, email: user.email, role: user.role });
+  const token = generateToken({ id: user.id, email: user.email });
   await tokenRepository.saveToken(user.id, token, 'auth');
 
   return {
@@ -115,11 +125,33 @@ export const verifyEmail = async (token: string) => {
   const updatedUser = (await userRepository.markEmailVerified(tokenRecord.userId)) as AuthUserRecord;
   await tokenRepository.deleteToken(token, 'email_verification');
 
-  const authToken = generateToken({ id: updatedUser.id, email: updatedUser.email, role: updatedUser.role });
+  const authToken = generateToken({ id: updatedUser.id, email: updatedUser.email });
   await tokenRepository.saveToken(updatedUser.id, authToken, 'auth');
 
   return {
     user: toSafeUser(updatedUser),
     token: authToken,
   };
+};
+
+export const resendVerificationEmail = async (email: string) => {
+  const user = (await userRepository.findUserByEmail(email)) as AuthUserRecord | null;
+  if (!user) {
+    return { status: 'sent' } as const;
+  }
+
+  if (user.emailVerified) {
+    return { status: 'already_verified' } as const;
+  }
+
+  await tokenRepository.deleteTokensByUserIdAndType(user.id, 'email_verification');
+
+  const verificationToken = generateVerificationCode();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await tokenRepository.saveToken(user.id, verificationToken, 'email_verification', expiresAt);
+
+  const verifyUrl = getFrontendVerifyUrl(verificationToken);
+  await sendVerificationEmail(user.email, verifyUrl, verificationToken);
+
+  return { status: 'sent' } as const;
 };

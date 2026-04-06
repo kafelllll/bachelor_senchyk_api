@@ -38,3 +38,30 @@ export const loginSchema = z.object({
       .refine((val) => val.trim().length > 0, 'Password cannot be only spaces'),
   }),
 });
+
+export const verifyEmailSchema = z.object({
+  body: z.object({
+    token: z
+      .string()
+      .trim()
+      .min(1, 'Verification token is required')
+      .optional(),
+    code: z
+      .string()
+      .trim()
+      .min(1, 'Verification code is required')
+      .optional(),
+  }).refine((data) => Boolean(data.token || data.code), {
+    message: 'Verification token is required',
+    path: ['token'],
+  }),
+});
+
+export const resendVerificationSchema = z.object({
+  body: z.object({
+    email: z
+      .string({ message: 'Email is required' })
+      .trim()
+      .email('Not a valid email'),
+  }),
+});

@@ -3,6 +3,7 @@ const path = require('path');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const s3Client = require('../config/s3.cjs');
+const { logger } = require('../utils/logger.cjs');
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -54,7 +55,7 @@ const getUploadUrl = async (req, res) => {
       fileUrl: `${process.env.AWS_S3_PUBLIC_BASE_URL}/${key}`,
     });
   } catch (error) {
-    console.error('Failed to create presigned URL', error);
+    logger.error('Failed to create presigned URL', { error });
     return res.status(500).json({ message: 'Failed to create upload URL' });
   }
 };

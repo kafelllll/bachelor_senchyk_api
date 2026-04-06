@@ -34,9 +34,7 @@ export const createAnnouncementLimiter = rateLimit({
   standardHeaders: true, // Повертає RateLimit-* headers
   legacyHeaders: false, // Вимикає X-RateLimit-* headers
   skip: (req) => {
-    // Пропускаємо rate limiting для admin користувачів (опціонально)
-    const authReq = req as AuthRequest;
-    return authReq.user?.role === 'admin';
+    return false;
   },
   keyGenerator: createKeyGenerator(),
   handler: (req, res) => {
