@@ -36,10 +36,7 @@ const respondServerError = (res: Response, message: string, error: any): void =>
 
 export const getAnnouncements = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = getUserIdOrUnauthorized(req, res);
-    if (!userId) return;
-
-    const announcements = await announcementService.getAnnouncementsForFeed(userId);
+    const announcements = await announcementService.getAnnouncementsForFeed(req.user?.id);
     res.status(200).json({ success: true, announcements });
   } catch (error: any) {
     logger.error('Get announcements error', { error });
@@ -49,11 +46,8 @@ export const getAnnouncements = async (req: AuthRequest, res: Response): Promise
 
 export const searchAnnouncements = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = getUserIdOrUnauthorized(req, res);
-    if (!userId) return;
-
     const result = await announcementService.searchAnnouncements(req.query as any);
-    res.status(200).json({ success: true, ...result });
+    res.status(200).json({ success: true, ...result, announcements: result.items });
   } catch (error: any) {
     logger.error('Search announcements error', { error });
     respondServerError(res, 'Failed to search announcements', error);
@@ -75,14 +69,8 @@ export const getMyAnnouncements = async (req: AuthRequest, res: Response): Promi
 
 export const getAnnouncement = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = getUserIdOrUnauthorized(req, res);
-    if (!userId) return;
-
     const announcementId = getAnnouncementIdOrBadRequest(req, res);
     if (!announcementId) return;
-
-    // ✅ ЗМІНЕНО: Отримуємо оглошення БЕЗ перевірки userId (публічний доступ)
-    // Будь-який залогінений користувач може видіти будь-яке оглошення
     const announcement = await announcementService.getAnnouncementByIdPublic(announcementId);
     if (!announcement) {
       res.status(404).json({ success: false, message: 'Announcement not found' });
@@ -100,8 +88,6 @@ export const createAnnouncement = async (req: AuthRequest, res: Response): Promi
   try {
     const userId = getUserIdOrUnauthorized(req, res);
     if (!userId) return;
-
-    // Перевіримо кількість активних оглошень
     const activeCount = await announcementService.countActiveAnnouncements(userId);
     const MAX_ACTIVE_ANNOUNCEMENTS = 50;
     
@@ -136,15 +122,11 @@ export const deleteAnnouncement = async (req: AuthRequest, res: Response): Promi
       res.status(400).json({ success: false, message: 'Announcement id is required' });
       return;
     }
-
-    // ✅ FIX: Check ownership with proper error codes (public fetch to distinguish 404 vs 403)
     const announcement = await announcementService.getAnnouncementByIdPublic(announcementId);
     if (!announcement) {
       res.status(404).json({ success: false, message: 'Announcement not found' });
       return;
     }
-    
-    // Check if user owns it
     if (announcement.userId !== userId) {
       res.status(403).json({ success: false, message: 'You do not have permission to delete this announcement' });
       return;
@@ -170,15 +152,11 @@ export const updateAnnouncement = async (req: AuthRequest, res: Response): Promi
 
     const announcementId = getAnnouncementIdOrBadRequest(req, res);
     if (!announcementId) return;
-
-    // ✅ FIX: Check ownership with proper error codes (public fetch to distinguish 404 vs 403)
     const announcement = await announcementService.getAnnouncementByIdPublic(announcementId);
     if (!announcement) {
       res.status(404).json({ success: false, message: 'Announcement not found' });
       return;
     }
-    
-    // Check if user owns it
     if (announcement.userId !== userId) {
       res.status(403).json({ success: false, message: 'You do not have permission to update this announcement' });
       return;
@@ -189,8 +167,6 @@ export const updateAnnouncement = async (req: AuthRequest, res: Response): Promi
       res.status(404).json({ success: false, message: 'Announcement not found' });
       return;
     }
-
-    // ✅ FIX: Return updated announcement data
     const updatedAnnouncement = await announcementService.getAnnouncementByIdPublic(announcementId);
     res.status(200).json({ success: true, announcement: updatedAnnouncement });
   } catch (error: any) {

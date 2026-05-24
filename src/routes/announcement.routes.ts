@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.middleware.js';
+import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { 
   createAnnouncementLimiter, 
@@ -11,16 +11,15 @@ import { createAnnouncementSchema, searchAnnouncementSchema, updateAnnouncementS
 
 const router = Router();
 
-router.get('/', authenticate, getAnnouncements);
+router.get('/', optionalAuthenticate, getAnnouncements);
 router.get('/me', authenticate, getMyAnnouncements);
-router.get('/search', authenticate, validate(searchAnnouncementSchema), searchAnnouncements);
+router.get('/search', optionalAuthenticate, validate(searchAnnouncementSchema), searchAnnouncements);
 router.get('/recommendations', authenticate, getUserAnnouncementMatches);
 router.get('/:id/matches', authenticate, getAnnouncementMatches);
-router.get('/:id', authenticate, getAnnouncement);
+router.get('/:id', optionalAuthenticate, getAnnouncement);
 router.post('/', authenticate, createAnnouncementLimiter, validate(createAnnouncementSchema), createAnnouncement);
 router.delete('/:id', authenticate, deleteAnnouncementLimiter, deleteAnnouncement);
 router.post('/delete', authenticate, deleteAnnouncementLimiter, deleteAnnouncement);
 router.patch('/:id', authenticate, updateAnnouncementLimiter, validate(updateAnnouncementSchema), updateAnnouncement);
 router.put('/:id', authenticate, updateAnnouncementLimiter, validate(updateAnnouncementSchema), updateAnnouncement);
-
 export default router;

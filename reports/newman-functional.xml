@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="PlantMatch Functional Flow" tests="11" time="0.074">
+  <testsuite name="Register User A" id="43e5d488-1be9-4d84-a8a1-a74e545b1ac5" timestamp="2026-05-24T22:05:38.360Z" tests="1" failures="0" errors="0" time="0.038">
+    <testcase name="register A status" time="0.038" classname="RegisterUserA"/>
+  </testsuite>
+  <testsuite name="Register User B" id="08679bc1-c250-44c0-aa3a-74aca1007311" timestamp="2026-05-24T22:05:38.360Z" tests="1" failures="0" errors="0" time="0.005">
+    <testcase name="register B status" time="0.005" classname="RegisterUserB"/>
+  </testsuite>
+  <testsuite name="Login User A" id="1149853b-a441-468f-92d4-558869fca6ec" timestamp="2026-05-24T22:05:38.360Z" tests="1" failures="0" errors="0" time="0.003">
+    <testcase name="login A 200" time="0.003" classname="LoginUserA"/>
+  </testsuite>
+  <testsuite name="Login User B" id="752c62ac-6891-4f40-8ba6-25eae9748049" timestamp="2026-05-24T22:05:38.360Z" tests="1" failures="0" errors="0" time="0.005">
+    <testcase name="login B 200" time="0.005" classname="LoginUserB"/>
+  </testsuite>
+  <testsuite name="Create Exchange (A -> B)" id="89d709c7-bf76-402a-a593-d9a4de154931" timestamp="2026-05-24T22:05:38.360Z" tests="1" failures="0" errors="0" time="0.004">
+    <testcase name="exchange created" time="0.004" classname="CreateExchangeAB"/>
+  </testsuite>
+  <testsuite name="Accept Exchange (B)" id="999371e9-49fd-48c2-8f66-9583fc6af5a1" timestamp="2026-05-24T22:05:38.360Z" tests="2" failures="0" errors="0" time="0.003">
+    <testcase name="accepted 200" time="0.003" classname="AcceptExchangeB"/>
+    <testcase name="status accepted" time="0.003" classname="AcceptExchangeB"/>
+  </testsuite>
+  <testsuite name="Confirm Completion (A)" id="b475b177-7955-4be2-af44-9edcdb957e31" timestamp="2026-05-24T22:05:38.360Z" tests="1" failures="0" errors="0" time="0.002">
+    <testcase name="confirm A 200" time="0.002" classname="ConfirmCompletionA"/>
+  </testsuite>
+  <testsuite name="Confirm Completion (B)" id="26a70253-802a-4d38-8696-5b0f8ecbd8a3" timestamp="2026-05-24T22:05:38.360Z" tests="2" failures="0" errors="0" time="0.003">
+    <testcase name="confirm B 200" time="0.003" classname="ConfirmCompletionB"/>
+    <testcase name="exchange completed" time="0.003" classname="ConfirmCompletionB"/>
+  </testsuite>
+  <testsuite name="Get My Exchanges (A, rating required)" id="a7417ab2-50d1-4501-a9b2-c615400e86ff" timestamp="2026-05-24T22:05:38.360Z" tests="3" failures="0" errors="0" time="0.005">
+    <testcase name="my exchanges 200" time="0.005" classname="GetMyExchangesARatingRequired"/>
+    <testcase name="exchange visible for A" time="0.005" classname="GetMyExchangesARatingRequired"/>
+    <testcase name="rating required before submit" time="0.005" classname="GetMyExchangesARatingRequired"/>
+  </testsuite>
+  <testsuite name="Submit Rating (A -> B)" id="b430c497-aab3-4acd-8bb4-ee5345a97813" timestamp="2026-05-24T22:05:38.360Z" tests="1" failures="0" errors="0" time="0.003">
+    <testcase name="rating submitted" time="0.003" classname="SubmitRatingAB"/>
+  </testsuite>
+  <testsuite name="Get My Exchanges (A, rating no longer required)" id="97473596-d6ee-4910-8e8c-e26a4f76d510" timestamp="2026-05-24T22:05:38.360Z" tests="2" failures="0" errors="0" time="0.003">
+    <testcase name="my exchanges 200 after rating" time="0.003" classname="GetMyExchangesARatingNoLongerRequired"/>
+    <testcase name="rating requirement cleared" time="0.003" classname="GetMyExchangesARatingNoLongerRequired"/>
+  </testsuite>
+</testsuites>

@@ -109,6 +109,16 @@ export const emitExchangeUpdated = (params: {
   });
 };
 
+export const emitExchangeViewUpdated = (params: {
+  userId: string;
+  exchange: unknown;
+}) => {
+  if (!io) {
+    return;
+  }
+  io.to(`user:${params.userId}`).emit('exchange:view-updated', params.exchange);
+};
+
 export const emitExchangeCounts = (params: {
   userId: string;
   pendingCount: number;
@@ -119,6 +129,22 @@ export const emitExchangeCounts = (params: {
   const server = io;
   server.to(`user:${params.userId}`).emit('exchange:counts', {
     pendingCount: params.pendingCount,
+  });
+};
+
+export const emitExchangeRatingPrompt = (params: {
+  userId: string;
+  exchangeId: string;
+  shouldPrompt: boolean;
+  ratingTarget: unknown | null;
+}) => {
+  if (!io) {
+    return;
+  }
+  io.to(`user:${params.userId}`).emit('exchange:rating-prompt', {
+    exchangeId: params.exchangeId,
+    shouldPrompt: params.shouldPrompt,
+    ratingTarget: params.ratingTarget,
   });
 };
 

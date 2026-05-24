@@ -7,5 +7,4 @@ const router = Router();
 
 router.get('/search', validate(plantSearchSchema), searchPlants);
 router.post('/identify', validate(plantIdentifySchema), identifyPlant);
-
 export default router;

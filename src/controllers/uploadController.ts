@@ -1,9 +1,16 @@
-const crypto = require('crypto');
-const path = require('path');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const s3Client = require('../config/s3.cjs');
-const { logger } = require('../utils/logger.cjs');
+import crypto from 'node:crypto';
+import path from 'node:path';
+import type { Request, Response } from 'express';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import s3Client from '../config/s3.js';
+import { logger } from '../utils/logger.js';
+
+type UploadRequest = Request & {
+  user?: {
+    id?: string;
+  };
+};
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -12,7 +19,7 @@ const sanitizeFileName = (baseName) => {
   return cleaned.length > 0 ? cleaned : 'file';
 };
 
-const getUploadUrl = async (req, res) => {
+export const getUploadUrl = async (req: UploadRequest, res: Response) => {
   try {
     const { fileName, fileType } = req.body || {};
 
@@ -59,5 +66,3 @@ const getUploadUrl = async (req, res) => {
     return res.status(500).json({ message: 'Failed to create upload URL' });
   }
 };
-
-module.exports = { getUploadUrl };

@@ -1,28 +1,28 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 export const registerSchema = z.object({
   body: z.object({
     name: z
-      .string({ message: 'Name is required' })
+      .string({ message: 'Ім’я є обов’язковим' })
       .trim()
-      .min(2, 'Name must be at least 2 characters')
-      .refine((val) => val.length > 0, 'Name cannot be only spaces'),
+      .min(2, 'Ім’я має містити щонайменше 2 символи')
+      .refine((val) => val.length > 0, 'Ім’я не може складатися лише з пробілів'),
     email: z
-      .string({ message: 'Email is required' })
+      .string({ message: 'Електронна адреса є обов’язковою' })
       .trim()
-      .email('Not a valid email'),
+      .email('Некоректна електронна адреса'),
     password: z
-      .string({ message: 'Password is required' })
-      .min(6, 'Password must be at least 6 characters long')
-      .refine((val) => val.trim().length > 0, 'Password cannot be only spaces'),
+      .string({ message: 'Пароль є обов’язковим' })
+      .min(6, 'Пароль має містити щонайменше 6 символів')
+      .refine((val) => val.trim().length > 0, 'Пароль не може складатися лише з пробілів'),
     confirmPassword: z
-      .string({ message: 'Confirm password is required' })
-      .refine((val) => val.trim().length > 0, 'Confirm password cannot be only spaces'),
-    termsAccepted: z.boolean({ message: 'Terms must be accepted' }).refine((val) => val === true, {
-      message: 'You must accept the terms and conditions',
+      .string({ message: 'Підтвердження пароля є обов’язковим' })
+      .refine((val) => val.trim().length > 0, 'Підтвердження пароля не може складатися лише з пробілів'),
+    termsAccepted: z.boolean({ message: 'Потрібно прийняти умови' }).refine((val) => val === true, {
+      message: 'Ви повинні прийняти умови та положення',
     }),
   }).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
+    message: "Паролі не збігаються",
     path: ["confirmPassword"],
   }),
 });
@@ -30,12 +30,12 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   body: z.object({
     email: z
-      .string({ message: 'Email is required' })
+      .string({ message: 'Електронна адреса є обов’язковою' })
       .trim()
-      .email('Not a valid email'),
+      .email('Некоректна електронна адреса'),
     password: z
-      .string({ message: 'Password is required' })
-      .refine((val) => val.trim().length > 0, 'Password cannot be only spaces'),
+      .string({ message: 'Пароль є обов’язковим' })
+      .refine((val) => val.trim().length > 0, 'Пароль не може складатися лише з пробілів'),
   }),
 });
 
@@ -44,15 +44,15 @@ export const verifyEmailSchema = z.object({
     token: z
       .string()
       .trim()
-      .min(1, 'Verification token is required')
+      .min(1, 'Токен підтвердження є обов’язковим')
       .optional(),
     code: z
       .string()
       .trim()
-      .min(1, 'Verification code is required')
+      .min(1, 'Код підтвердження є обов’язковим')
       .optional(),
   }).refine((data) => Boolean(data.token || data.code), {
-    message: 'Verification token is required',
+    message: 'Токен підтвердження є обов’язковим',
     path: ['token'],
   }),
 });
@@ -60,8 +60,8 @@ export const verifyEmailSchema = z.object({
 export const resendVerificationSchema = z.object({
   body: z.object({
     email: z
-      .string({ message: 'Email is required' })
+      .string({ message: 'Електронна адреса є обов’язковою' })
       .trim()
-      .email('Not a valid email'),
+      .email('Некоректна електронна адреса'),
   }),
 });

@@ -1,7 +1,8 @@
 import type { Response } from 'express';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import * as ratingService from '../services/rating.service.js';
-import { emitRatingSummary } from '../realtime/socket.js';
+import * as exchangeService from '../services/exchange.service.js';
+import { emitExchangeRatingPrompt, emitExchangeViewUpdated, emitRatingSummary } from '../realtime/socket.js';
 
 const respondUnauthorized = (res: Response): null => {
   res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -29,6 +30,23 @@ export const createRating = async (req: AuthRequest, res: Response): Promise<voi
     const rating = await ratingService.createRating(userId, req.body);
     const summary = await ratingService.getRatingsSummary(rating.toUserId);
     emitRatingSummary({ userId: rating.toUserId, summary });
+
+    const [view, prompt] = await Promise.all([
+      exchangeService.getExchangeRealtimeForUser(userId, rating.exchangeId),
+      exchangeService.getExchangeRatingPromptState(userId, rating.exchangeId),
+    ]);
+    if (view) {
+      emitExchangeViewUpdated({ userId, exchange: view });
+    }
+    if (prompt) {
+      emitExchangeRatingPrompt({
+        userId,
+        exchangeId: rating.exchangeId,
+        shouldPrompt: prompt.shouldPrompt,
+        ratingTarget: prompt.ratingTarget,
+      });
+    }
+
     res.status(201).json({ success: true, rating });
   } catch (error: any) {
     if (error?.message === 'Exchange not found') {

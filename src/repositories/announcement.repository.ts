@@ -122,6 +122,20 @@ export const findAnnouncementsExcludingUser = async (userId: string) => {
   });
 };
 
+export const findActiveAnnouncements = async () => {
+  const now = new Date();
+  return prisma.announcement.findMany({
+    where: {
+      status: 'active',
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    select: announcementSelect,
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+};
+
 export const findAnnouncementsByUser = async (userId: string) => {
   return prisma.announcement.findMany({
     where: { userId },
@@ -156,10 +170,6 @@ export const findAnnouncementById = async (id: string, userId: string) => {
   });
 };
 
-/**
- * Отримує оглошення за ID без перевірки користувача (публічний доступ)
- * Використовується для GET /announcements/:id де будь-хто може видіти будь-яке оглошення
- */
 export const findAnnouncementByIdPublic = async (id: string) => {
   return prisma.announcement.findUnique({
     where: { id },
@@ -193,10 +203,6 @@ export const updateAnnouncementStatusById = async (id: string, status: string) =
   });
 };
 
-/**
- * Підраховує кількість активних оглошень користувача
- * Активні = статус 'active' та не закінчилося (expiresAt > now або expiresAt null)
- */
 export const countActiveAnnouncements = async (userId: string) => {
   return prisma.announcement.count({
     where: {
@@ -253,6 +259,7 @@ const buildSearchWhere = (params: {
   offerType?: string;
   status?: string;
   plantName?: string;
+  userId?: string;
 }) => {
   const andFilters: any[] = [];
 
@@ -271,6 +278,10 @@ const buildSearchWhere = (params: {
 
   if (params.plantName) {
     andFilters.push({ plantName: { contains: params.plantName, mode: 'insensitive' } });
+  }
+
+  if (params.userId) {
+    andFilters.push({ userId: params.userId });
   }
 
   if (params.category) {
@@ -323,6 +334,7 @@ export const searchAnnouncements = async (params: {
   offerType?: string;
   status?: string;
   plantName?: string;
+  userId?: string;
   limit: number;
   page: number;
   sortBy: 'createdAt' | 'updatedAt' | 'plantName';
@@ -351,6 +363,7 @@ export const countSearchAnnouncements = async (params: {
   offerType?: string;
   status?: string;
   plantName?: string;
+  userId?: string;
 }) => {
   const where = buildSearchWhere(params);
   return prisma.announcement.count({ where });

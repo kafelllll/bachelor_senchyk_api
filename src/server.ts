@@ -6,7 +6,7 @@ import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import announcementRoutes from './routes/announcement.routes.js';
 import plantRoutes from './routes/plant.routes.js';
-import uploadRoutes from './routes/uploadRoutes.cjs';
+import uploadRoutes from './routes/uploadRoutes.js';
 import profileRoutes from './routes/profile.routes.js';
 import messageRoutes from './routes/message.routes.js';
 import exchangeRoutes from './routes/exchange.routes.js';

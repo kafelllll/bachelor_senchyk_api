@@ -1,4 +1,4 @@
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+﻿import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request } from 'express';
 import type { AuthRequest } from './auth.middleware.js';
 
@@ -8,31 +8,22 @@ type RateLimitedRequest = Request & {
   };
 };
 
-/**
- * Кастомний keyGenerator, який використовує userId якщо доступний, інакше IP
- */
 const createKeyGenerator = () => {
   return (req: Request) => {
-    // Якщо це авторизований користувач, використовуємо userId
     const authReq = req as AuthRequest;
     if (authReq.user?.id) {
       return authReq.user.id;
     }
-    // Інакше використовуємо IP
     return req.ip ? ipKeyGenerator(req.ip) : 'unknown';
   };
 };
 
-/**
- * Rate limiter для створення оглошень
- * Обмеження: максимум 5 оглошень за 15 хвилин на користувача
- */
 export const createAnnouncementLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 хвилин
-  max: 5, // Максимум 5 оглошень за вікно
-  message: 'Too many announcements created. You can create maximum 5 announcements per 15 minutes. Please try again later.',
-  standardHeaders: true, // Повертає RateLimit-* headers
-  legacyHeaders: false, // Вимикає X-RateLimit-* headers
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Занадто багато оголошень створено. Ви можете створити максимум 5 оголошень за 15 хвилин. Будь ласка, спробуйте пізніше.',
+  standardHeaders: true,
+  legacyHeaders: false,
   skip: (req) => {
     return false;
   },
@@ -45,20 +36,16 @@ export const createAnnouncementLimiter = rateLimit({
     res.set('Retry-After', String(retryAfter));
     res.status(429).json({
       success: false,
-      message: 'Too many announcements created. You can create maximum 5 announcements per 15 minutes. Please try again later.',
+      message: 'Занадто багато оголошень створено. Ви можете створити максимум 5 оголошень за 15 хвилин. Будь ласка, спробуйте пізніше.',
       retryAfter,
     });
   },
 });
 
-/**
- * Rate limiter для видалення оглошень
- * Обмеження: максимум 10 видалень за 1 годину
- */
 export const deleteAnnouncementLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 година
-  max: 10, // Максимум 10 видалень за вікно
-  message: 'Too many announcements deleted. Please try again later.',
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: 'Занадто багато оголошень видалено. Будь ласка, спробуйте пізніше.',
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: createKeyGenerator(),
@@ -70,20 +57,16 @@ export const deleteAnnouncementLimiter = rateLimit({
     res.set('Retry-After', String(retryAfter));
     res.status(429).json({
       success: false,
-      message: 'Too many announcements deleted. Please try again later.',
+      message: 'Занадто багато оголошень видалено. Будь ласка, спробуйте пізніше.',
       retryAfter,
     });
   },
 });
 
-/**
- * Rate limiter для оновлення оглошень
- * Обмеження: максимум 20 оновлень за 1 годину
- */
 export const updateAnnouncementLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 година
-  max: 20, // Максимум 20 оновлень за вікно
-  message: 'Too many announcements updated. Please try again later.',
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: 'Занадто багато оголошень оновлено. Будь ласка, спробуйте пізніше.',
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: createKeyGenerator(),
@@ -100,3 +83,4 @@ export const updateAnnouncementLimiter = rateLimit({
     });
   },
 });
+

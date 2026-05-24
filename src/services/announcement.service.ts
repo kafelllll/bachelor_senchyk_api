@@ -258,7 +258,13 @@ export const createAnnouncement = async (userId: string, data: CreateAnnouncemen
   return announcementRepository.createAnnouncement(payload);
 };
 
-const attachUserStats = async <T extends { user?: { id: string } | null }>(items: T[]) => {
+type AnnouncementUser = {
+  id: string;
+  name?: string | null;
+  avatar?: string | null;
+};
+
+const attachUserStats = async <T extends { user?: AnnouncementUser | null }>(items: T[]) => {
   const userIds = items.map((item) => item.user?.id).filter((id): id is string => Boolean(id));
   const statsMap = await getUserStatsMap(userIds);
   return items.map((item) => {
@@ -274,9 +280,30 @@ const attachUserStats = async <T extends { user?: { id: string } | null }>(items
   });
 };
 
-export const getAnnouncementsForFeed = async (userId: string) => {
-  const announcements = await announcementRepository.findAnnouncementsExcludingUser(userId);
-  return attachUserStats(announcements);
+const addFrontendAliases = <T extends {
+  photos?: string[] | null;
+  coverPhoto?: string | null;
+  user?: { name?: string | null; avatar?: string | null } | null;
+}>(item: T) => ({
+  ...item,
+  image: item.coverPhoto ?? item.photos?.[0] ?? null,
+  images: item.photos ?? [],
+  userName: item.user?.name ?? null,
+  userAvatar: item.user?.avatar ?? null,
+});
+
+const addFrontendAliasesToList = <T extends {
+  photos?: string[] | null;
+  coverPhoto?: string | null;
+  user?: { name?: string | null; avatar?: string | null } | null;
+}>(items: T[]) => items.map(addFrontendAliases);
+
+export const getAnnouncementsForFeed = async (userId?: string) => {
+  const announcements = userId
+    ? await announcementRepository.findAnnouncementsExcludingUser(userId)
+    : await announcementRepository.findActiveAnnouncements();
+  const enriched = await attachUserStats(announcements);
+  return addFrontendAliasesToList(enriched);
 };
 
 export const searchAnnouncements = async (query: SearchAnnouncementQuery) => {
@@ -308,6 +335,7 @@ export const searchAnnouncements = async (query: SearchAnnouncementQuery) => {
       ...(inferredOfferType !== undefined ? { offerType: inferredOfferType } : {}),
       ...(statusFilter !== undefined ? { status: statusFilter } : {}),
       ...(query.plantName !== undefined ? { plantName: query.plantName } : {}),
+      ...(query.userId !== undefined ? { userId: query.userId } : {}),
       limit,
       page,
       sortBy,
@@ -324,6 +352,7 @@ export const searchAnnouncements = async (query: SearchAnnouncementQuery) => {
       ...(inferredOfferType !== undefined ? { offerType: inferredOfferType } : {}),
       ...(statusFilter !== undefined ? { status: statusFilter } : {}),
       ...(query.plantName !== undefined ? { plantName: query.plantName } : {}),
+      ...(query.userId !== undefined ? { userId: query.userId } : {}),
     }),
   ]);
 
@@ -332,7 +361,7 @@ export const searchAnnouncements = async (query: SearchAnnouncementQuery) => {
   const itemsWithStats = await attachUserStats(items);
 
   return {
-    items: itemsWithStats,
+    items: addFrontendAliasesToList(itemsWithStats),
     page,
     limit,
     total,
@@ -342,21 +371,19 @@ export const searchAnnouncements = async (query: SearchAnnouncementQuery) => {
 
 export const getAnnouncementsForUser = async (userId: string) => {
   const announcements = await announcementRepository.findAnnouncementsByUser(userId);
-  return attachUserStats(announcements);
+  const enriched = await attachUserStats(announcements);
+  return addFrontendAliasesToList(enriched);
 };
 
 export const getAnnouncementById = async (userId: string, announcementId: string) => {
   return announcementRepository.findAnnouncementById(announcementId, userId);
 };
 
-/**
- * Отримує оглошення за ID без перевірки користувача (публічний доступ)
- */
 export const getAnnouncementByIdPublic = async (announcementId: string) => {
   const announcement = await announcementRepository.findAnnouncementByIdPublic(announcementId);
   if (!announcement) return announcement;
   const enriched = await attachUserStats([announcement]);
-  return enriched[0];
+  return addFrontendAliases(enriched[0]);
 };
 
 export const deleteAnnouncement = async (userId: string, announcementId: string) => {
@@ -489,9 +516,6 @@ export const updateAnnouncement = async (userId: string, announcementId: string,
   return result.count > 0;
 };
 
-/**
- * Підраховує кількість активних оглошень користувача
- */
 export const countActiveAnnouncements = async (userId: string) => {
   return announcementRepository.countActiveAnnouncements(userId);
 };

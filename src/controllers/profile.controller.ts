@@ -1,4 +1,4 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import * as profileService from '../services/profile.service.js';
 
@@ -26,6 +26,25 @@ export const getMyProfile = async (req: AuthRequest, res: Response): Promise<voi
 
     const profile = await profileService.getMyProfile(userId);
     res.status(200).json({ success: true, profile });
+  } catch (error: any) {
+    if (error?.message === 'User not found') {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    respondServerError(res, 'Failed to fetch profile', error);
+  }
+};
+
+export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+    if (!id) {
+      res.status(400).json({ success: false, message: 'User ID is required' });
+      return;
+    }
+
+    const profile = await profileService.getUserProfile(id);
+    res.status(200).json({ success: true, profile, user: profile });
   } catch (error: any) {
     if (error?.message === 'User not found') {
       res.status(404).json({ success: false, message: 'User not found' });

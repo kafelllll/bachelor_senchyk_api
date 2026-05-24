@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+﻿import bcrypt from 'bcrypt';
 import crypto from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { generateToken } from '../utils/jwt.js';
@@ -107,8 +107,6 @@ export const logoutUser = async (token: string) => {
 export const getUserById = async (id: string) => {
   const user = (await userRepository.findUserById(id)) as AuthUserRecord | null;
   if (!user) throw new Error('User not found');
-  
-  // Return safe user object
   return toSafeUser(user);
 };
 
@@ -155,3 +153,4 @@ export const resendVerificationEmail = async (email: string) => {
 
   return { status: 'sent' } as const;
 };
+

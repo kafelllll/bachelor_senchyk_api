@@ -1,6 +1,9 @@
 import * as exchangeRepository from '../repositories/exchange.repository.js';
 import * as ratingRepository from '../repositories/rating.repository.js';
 import type { CreateRatingInput } from '../types/rating.types.js';
+import * as userRepository from '../repositories/user.repository.js';
+import { sendRatingNotificationEmail } from './email.service.js';
+import { logger } from '../utils/logger.js';
 
 export const createRating = async (fromUserId: string, data: CreateRatingInput) => {
   const exchange = await exchangeRepository.findExchangeById(data.exchangeId);
@@ -30,13 +33,37 @@ export const createRating = async (fromUserId: string, data: CreateRatingInput) 
     throw new Error('Rating already exists');
   }
 
-  return ratingRepository.createRating({
+  const rating = await ratingRepository.createRating({
     exchange: { connect: { id: data.exchangeId } },
     fromUser: { connect: { id: fromUserId } },
     toUser: { connect: { id: otherUserId } },
     score: data.score,
     comment: data.comment ?? null,
   });
+
+  try {
+    const [receiver, rater] = await Promise.all([
+      userRepository.findUserById(otherUserId),
+      userRepository.findUserById(fromUserId),
+    ]);
+    if (receiver?.email) {
+      await sendRatingNotificationEmail(receiver.email, {
+        receiverName: receiver.name ?? 'User',
+        receiverId: receiver.id,
+        raterName: rater?.name ?? 'User',
+        raterId: rater?.id ?? fromUserId,
+        score: rating.score,
+        comment: rating.comment ?? null,
+      });
+    }
+  } catch (error: any) {
+    logger.warn('Failed to send rating notification email', {
+      error: error?.message ?? 'Unknown error',
+      receiverId: otherUserId,
+    });
+  }
+
+  return rating;
 };
 
 export const getRatingsSummary = async (userId: string) => {

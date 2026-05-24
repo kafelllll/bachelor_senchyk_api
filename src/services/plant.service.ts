@@ -64,7 +64,7 @@ export class PlantNetRequestError extends Error {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const commonNameAliases: Record<string, string> = {
   'snake plant': 'dracaena trifasciata',

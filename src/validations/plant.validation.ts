@@ -14,7 +14,7 @@ export const plantSearchSchema = z.object({
     name: z.preprocess(normalizeOptionalQuery, z.string().min(1).optional()),
   }),
 }).refine((data) => Boolean(data.query.commonName || data.query.name), {
-  message: 'commonName or name is required',
+  message: 'Потрібно вказати commonName або name',
   path: ['query'],
 });
 
@@ -55,6 +55,6 @@ export const plantIdentifySchema = z
     }, plantIdentifyBodySchema),
   })
   .refine((data) => Boolean(data.body.imageBase64 || (data.body.images && data.body.images.length > 0)), {
-    message: 'imageBase64 or images is required',
+    message: 'Потрібно передати imageBase64 або images',
     path: ['body'],
   });

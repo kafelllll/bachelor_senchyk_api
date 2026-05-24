@@ -5,10 +5,13 @@ const exchangeSelect = {
   initiatorId: true,
   receiverId: true,
   announcementId: true,
+  offeredAnnouncementId: true,
   status: true,
   createdAt: true,
   updatedAt: true,
   completedAt: true,
+  initiatorCompletedAt: true,
+  receiverCompletedAt: true,
   initiator: {
     select: {
       id: true,
@@ -63,12 +66,53 @@ const exchangeSelect = {
       },
     },
   },
+  offeredAnnouncement: {
+    select: {
+      id: true,
+      plantName: true,
+      offerType: true,
+      category: true,
+      size: true,
+      condition: true,
+      careLevel: true,
+      city: true,
+      district: true,
+      description: true,
+      additionalTags: true,
+      pestFree: true,
+      readyToExchange: true,
+      genus: true,
+      family: true,
+      commonName: true,
+      photos: true,
+      coverPhoto: true,
+      wateringFreq: true,
+      lightReqs: true,
+      humidity: true,
+      toxicity: true,
+      growthRate: true,
+      hasOffspring: true,
+      status: true,
+      expiresAt: true,
+      createdAt: true,
+      updatedAt: true,
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+        },
+      },
+    },
+  },
 } as const;
 
 export const createExchange = async (data: {
   initiator: { connect: { id: string } };
   receiver: { connect: { id: string } };
   announcement: { connect: { id: string } };
+  offeredAnnouncement?: { connect: { id: string } };
 }) => {
   return prisma.exchange.create({ data, select: exchangeSelect });
 };
@@ -117,7 +161,7 @@ export const findExchangesForUser = async (userId: string) => {
       OR: [{ initiatorId: userId }, { receiverId: userId }],
     },
     select: exchangeSelect,
-    orderBy: { updatedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
   });
 };
 
@@ -125,13 +169,63 @@ export const updateExchangeStatus = async (params: {
   id: string;
   status: 'pending' | 'accepted' | 'completed' | 'cancelled';
   completedAt?: Date | null;
+  initiatorCompletedAt?: Date | null;
+  receiverCompletedAt?: Date | null;
 }) => {
-  const { id, status, completedAt } = params;
+  const { id, status, completedAt, initiatorCompletedAt, receiverCompletedAt } = params;
   return prisma.exchange.update({
     where: { id },
     data: {
       status,
       ...(completedAt !== undefined ? { completedAt } : {}),
+      ...(initiatorCompletedAt !== undefined ? { initiatorCompletedAt } : {}),
+      ...(receiverCompletedAt !== undefined ? { receiverCompletedAt } : {}),
+    },
+    select: exchangeSelect,
+  });
+};
+
+export const reopenCancelledExchange = async (params: {
+  id: string;
+  offeredAnnouncementId?: string | null;
+}) => {
+  const { id, offeredAnnouncementId } = params;
+
+  return prisma.exchange.update({
+    where: { id },
+    data: {
+      status: 'pending',
+      completedAt: null,
+      initiatorCompletedAt: null,
+      receiverCompletedAt: null,
+      offeredAnnouncementId: offeredAnnouncementId ?? null,
+    },
+    select: exchangeSelect,
+  });
+};
+
+export const confirmExchangeCompletion = async (params: {
+  id: string;
+  actor: 'initiator' | 'receiver';
+  confirmedAt: Date;
+  completeNow: boolean;
+}) => {
+  const { id, actor, confirmedAt, completeNow } = params;
+  const completionPatch =
+    actor === 'initiator'
+      ? { initiatorCompletedAt: confirmedAt }
+      : { receiverCompletedAt: confirmedAt };
+
+  return prisma.exchange.update({
+    where: { id },
+    data: {
+      ...completionPatch,
+      ...(completeNow
+        ? {
+            status: 'completed',
+            completedAt: confirmedAt,
+          }
+        : {}),
     },
     select: exchangeSelect,
   });

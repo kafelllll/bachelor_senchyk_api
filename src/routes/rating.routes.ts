@@ -7,5 +7,4 @@ import { createRatingSchema } from '../validations/rating.validation.js';
 const router = Router();
 
 router.post('/', authenticate, validate(createRatingSchema), createRating);
-
 export default router;

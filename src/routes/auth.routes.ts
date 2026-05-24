@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import {
 	register,
 	login,
@@ -18,16 +18,12 @@ import {
 } from '../validations/auth.validation.js';
 
 const router = Router();
-
-// Public routes
 router.post('/register', validate(registerSchema), register);
 router.post('/login', validate(loginSchema), login);
 router.get('/verify-email', verifyEmail);
 router.post('/verify-email', validate(verifyEmailSchema), verifyEmailFromBody);
 router.post('/resend-verification', validate(resendVerificationSchema), resendVerificationEmail);
-
-// Protected routes
 router.post('/logout', authenticate, logout);
 router.get('/me', authenticate, getMe);
-
 export default router;
+

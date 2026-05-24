@@ -1,0 +1,309 @@
+{
+  "info": {
+    "name": "PlantMatch Functional Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Automated functional flow for auth, exchanges completion, and ratings"
+  },
+  "item": [
+    {
+      "name": "Register User A",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"User A\",\n  \"email\": \"usera+{{runId}}@test.local\",\n  \"password\": \"Password123\",\n  \"confirmPassword\": \"Password123\",\n  \"termsAccepted\": true\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('register A status', function () { pm.expect(pm.response.code).to.be.oneOf([201, 409]); });",
+              "if (pm.response.code === 201) {",
+              "  const json = pm.response.json();",
+              "  pm.collectionVariables.set('userAId', json.user.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register User B",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"User B\",\n  \"email\": \"userb+{{runId}}@test.local\",\n  \"password\": \"Password123\",\n  \"confirmPassword\": \"Password123\",\n  \"termsAccepted\": true\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('register B status', function () { pm.expect(pm.response.code).to.be.oneOf([201, 409]); });",
+              "if (pm.response.code === 201) {",
+              "  const json = pm.response.json();",
+              "  pm.collectionVariables.set('userBId', json.user.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login User A",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"usera+{{runId}}@test.local\",\n  \"password\": \"Password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('login A 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('tokenA', json.token);",
+              "pm.collectionVariables.set('userAId', json.user.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login User B",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"userb+{{runId}}@test.local\",\n  \"password\": \"Password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('login B 200', function () { pm.response.to.have.status(200); });",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('tokenB', json.token);",
+              "pm.collectionVariables.set('userBId', json.user.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Exchange (A -> B)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+        ],
+        "url": "{{baseUrl}}/exchanges",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"announcementId\": \"11111111-1111-1111-1111-111111111111\",\n  \"receiverId\": \"{{userBId}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('exchange created', function () { pm.response.to.have.status(201); });",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('exchangeId', json.exchange.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accept Exchange (B)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenB}}" }
+        ],
+        "url": "{{baseUrl}}/exchanges/{{exchangeId}}/status",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"accepted\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('accepted 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('status accepted', function () { pm.expect(pm.response.json().exchange.status).to.eql('accepted'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Confirm Completion (A)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+        ],
+        "url": "{{baseUrl}}/exchanges/{{exchangeId}}/confirm-completion",
+        "body": { "mode": "raw", "raw": "{}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('confirm A 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Confirm Completion (B)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenB}}" }
+        ],
+        "url": "{{baseUrl}}/exchanges/{{exchangeId}}/confirm-completion",
+        "body": { "mode": "raw", "raw": "{}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('confirm B 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('exchange completed', function () { pm.expect(pm.response.json().exchange.status).to.eql('completed'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get My Exchanges (A, rating required)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+        ],
+        "url": "{{baseUrl}}/exchanges/my"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('my exchanges 200', function () { pm.response.to.have.status(200); });",
+              "const list = pm.response.json().exchanges || [];",
+              "const found = list.find(x => x.id === pm.collectionVariables.get('exchangeId'));",
+              "pm.test('exchange visible for A', function () { pm.expect(!!found).to.eql(true); });",
+              "pm.test('rating required before submit', function () { pm.expect(found.ratingRequired).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Submit Rating (A -> B)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+        ],
+        "url": "{{baseUrl}}/ratings",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"exchangeId\": \"{{exchangeId}}\",\n  \"toUserId\": \"{{userBId}}\",\n  \"score\": 5,\n  \"comment\": \"Great exchange\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('rating submitted', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get My Exchanges (A, rating no longer required)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+        ],
+        "url": "{{baseUrl}}/exchanges/my"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('my exchanges 200 after rating', function () { pm.response.to.have.status(200); });",
+              "const list = pm.response.json().exchanges || [];",
+              "const found = list.find(x => x.id === pm.collectionVariables.get('exchangeId'));",
+              "pm.test('rating requirement cleared', function () { pm.expect(found.ratingRequired).to.eql(false); });"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "if (!pm.collectionVariables.get('runId')) {",
+          "  pm.collectionVariables.set('runId', Date.now().toString());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "runId", "value": "" },
+    { "key": "tokenA", "value": "" },
+    { "key": "tokenB", "value": "" },
+    { "key": "userAId", "value": "" },
+    { "key": "userBId", "value": "" },
+    { "key": "exchangeId", "value": "" }
+  ]
+}

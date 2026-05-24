@@ -1,10 +1,8 @@
-declare module '@prisma/client' {
-  // Minimal shim to satisfy TypeScript when Prisma types are not resolved.
+﻿declare module '@prisma/client' {
   export class PrismaClient {
     constructor(...args: any[]);
     [key: string]: any;
   }
-
   export namespace Prisma {
     export type AnnouncementCreateInput = any;
     export type AnnouncementUpdateInput = any;
@@ -12,3 +10,4 @@ declare module '@prisma/client' {
     export type UserUpdateInput = any;
   }
 }
+

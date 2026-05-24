@@ -1,4 +1,4 @@
-import * as announcementRepository from '../repositories/announcement.repository.js';
+﻿import * as announcementRepository from '../repositories/announcement.repository.js';
 import * as ratingRepository from '../repositories/rating.repository.js';
 import { getUserStatsMap } from './userStats.service.js';
 import { logger } from '../utils/logger.js';
@@ -128,8 +128,7 @@ const normalizeWeights = <T extends Record<string, number>>(weights: T): T => {
 };
 
 const MATCH_WEIGHTS: typeof RAW_WEIGHTS = normalizeWeights(RAW_WEIGHTS);
-
-const MIN_MATCH_SCORE = 10;
+const MIN_MATCH_SCORE = 0;
 
 const normalizeLower = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -137,22 +136,15 @@ const normalizeLower = (value: string | null | undefined): string | null => {
 };
 
 const normalizeOfferTypeForMatch = (value: string | null | undefined): string | null => {
-  const lower = value?.toLowerCase();
+  const lower = value?.trim().toLowerCase();
   if (!lower) return null;
-  if (lower === 'give' || lower === 'giveaway' || lower === 'offer') {
+  if (lower === 'offer') {
     return 'offer';
   }
-  if (lower === 'seek' || lower === 'looking' || lower === 'looking-for' || lower === 'looking_for' || lower === 'request') {
+  if (lower === 'looking-for') {
     return 'looking-for';
   }
-  return lower;
-};
-
-const getOfferTypeVariants = (normalizedOfferType: string | null): string[] => {
-  if (!normalizedOfferType) return [];
-  if (normalizedOfferType === 'offer') return ['offer', 'give', 'giveaway'];
-  if (normalizedOfferType === 'looking-for') return ['looking-for', 'looking_for', 'looking', 'seek', 'request'];
-  return [normalizedOfferType];
+  return null;
 };
 
 const scoreTextMatch = (a: string | null | undefined, b: string | null | undefined): number => {
@@ -380,7 +372,7 @@ export const getAnnouncementMatches = async (userId: string, announcementId: str
   const candidates = await announcementRepository.findMatchingCandidates({
     userId,
     category: baseAnnouncement.category,
-    offerType: getOfferTypeVariants(oppositeOfferType),
+    offerType: oppositeOfferType,
   });
 
   const candidatesWithReputation = await attachReputationScores(candidates as MatchCandidate[]);
@@ -428,7 +420,7 @@ export const getUserAnnouncementMatches = async (userId: string) => {
     const candidates = await announcementRepository.findMatchingCandidates({
       userId,
       category: baseAnnouncement.category,
-      offerType: getOfferTypeVariants(oppositeOfferType),
+      offerType: oppositeOfferType,
     });
 
     const candidatesWithReputation = await attachReputationScores(candidates as MatchCandidate[]);
@@ -463,3 +455,4 @@ export const getUserAnnouncementMatches = async (userId: string) => {
 
   return Array.from(bestByCandidateId.values()).sort((a, b) => b.score - a.score);
 };
+

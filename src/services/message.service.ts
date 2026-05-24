@@ -3,6 +3,8 @@ import * as userRepository from '../repositories/user.repository.js';
 import * as announcementRepository from '../repositories/announcement.repository.js';
 import type { CreateMessageInput, GetConversationsQuery, DeleteConversationQuery } from '../types/message.types.js';
 import { getUserStatsMap } from './userStats.service.js';
+import { sendMessageNotificationEmail } from './email.service.js';
+import { logger } from '../utils/logger.js';
 
 const normalizeContent = (content: string) => content.trim().replace(/\s+/g, ' ');
 
@@ -20,19 +22,47 @@ export const createMessage = async (senderId: string, data: CreateMessageInput) 
     throw new Error('Receiver not found');
   }
 
+  const sender = await userRepository.findUserById(senderId);
+  if (!sender) {
+    throw new Error('Sender not found');
+  }
+
+  let announcementTitle: string | null = null;
   if (data.announcementId) {
     const announcement = await announcementRepository.findAnnouncementByIdPublic(data.announcementId);
     if (!announcement) {
       throw new Error('Announcement not found');
     }
+    announcementTitle = announcement.plantName ?? null;
   }
 
-  return messageRepository.createMessage({
+  const message = await messageRepository.createMessage({
     sender: { connect: { id: senderId } },
     receiver: { connect: { id: data.receiverId } },
     ...(data.announcementId ? { announcement: { connect: { id: data.announcementId } } } : {}),
     content: normalizeContent(data.content),
   });
+
+  if (receiver.email) {
+    try {
+      await sendMessageNotificationEmail(receiver.email, {
+        receiverName: receiver.name ?? 'User',
+        receiverId: receiver.id,
+        senderName: sender.name ?? 'User',
+        senderId: sender.id,
+        message: message.content,
+        announcementId: data.announcementId ?? null,
+        announcementTitle,
+      });
+    } catch (error: any) {
+      logger.warn('Failed to send message notification email', {
+        error: error?.message ?? 'Unknown error',
+        receiverId: receiver.id,
+      });
+    }
+  }
+
+  return message;
 };
 
 export const getMessagesBetweenUsers = async (

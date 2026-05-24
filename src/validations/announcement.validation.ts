@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 const categoryValues = ['indoor', 'succulent', 'other'] as const;
 const sizeValues = ['small', 'medium', 'large'] as const;
@@ -11,8 +11,7 @@ const humidityValues = ['low', 'medium', 'high'] as const;
 const toxicityValues = ['non-toxic', 'slightly-toxic', 'toxic'] as const;
 const growthRateValues = ['slow', 'moderate', 'fast'] as const;
 const statusValues = ['active', 'pending', 'rejected', 'inactive'] as const;
-
-// P0: Security - Sanitization helpers
+const searchStatusValues = ['active', 'pending', 'rejected', 'inactive', 'in-progress', 'completed'] as const;
 const isWhitespaceOnly = (str: string) => str.trim().length === 0;
 
 const sanitizeHtml = (html: string) => {
@@ -21,8 +20,6 @@ const sanitizeHtml = (html: string) => {
     .replace(/on\w+\s*=/gi, '')
     .replace(/javascript:/gi, '');
 };
-
-// P1: Data Quality - Normalization helpers
 const normalizeCity = (city: string) => {
   return city
     .trim()
@@ -31,14 +28,13 @@ const normalizeCity = (city: string) => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 };
-
-// P1: Validation helpers
-const hasLetters = (str: string) => /[a-яA-ZащіїєґёЁ]/i.test(str);
+const hasLetters = (str: string) => /\p{L}/u.test(str);
 
 const hasMinWords = (str: string, minWords: number) => {
   const words = str.trim().split(/\s+/).filter(word => word.length > 0);
   return words.length >= minWords;
 };
+const hasDigits = (str: string) => /\d/.test(str);
 
 const validateDateInRange = (date: string) => {
   const d = new Date(date);
@@ -52,8 +48,8 @@ const plantSourceSchema = z
   .object({
     id: z
       .union([
-        z.string().regex(/^\d+$/, 'ID must contain only digits'),
-        z.number().int().gte(0, 'ID must be non-negative'),
+        z.string().regex(/^\d+$/, 'ID має містити лише цифри'),
+        z.number().int().gte(0, 'ID має бути невід’ємним'),
       ])
       .optional(),
     name: z.string().min(1).optional(),
@@ -91,66 +87,60 @@ const hasPlantResult = (sources: Array<unknown>) => {
 
 export const createAnnouncementSchema = z.object({
   body: z.object({
-    // Plant identification - required
     plantName: z
-      .string({ message: 'Plant name is required' })
+      .string({ message: 'Назва рослини є обов’язковою' })
       .trim()
-      .min(1, 'Plant name is required')
-      .max(100, 'Plant name must be max 100 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Plant name cannot be only spaces')
+      .min(1, 'Назва рослини є обов’язковою')
+      .max(100, 'Назва рослини має містити не більше 100 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Назва рослини не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
-    
-    // Offer type - required
-    offerType: z.enum(offerTypeValues, { message: 'Offer type is required' }),
+    offerType: z.enum(offerTypeValues, { message: 'Тип пропозиції є обов’язковим' }),
     offer_type: z.enum(offerTypeValues).optional(),
-    
-    // Category fields - required
-    category: z.enum(categoryValues, { message: 'Category is required' }),
-    size: z.enum(sizeValues, { message: 'Size is required' }),
-    condition: z.enum(conditionValues, { message: 'Condition is required' }),
-    careLevel: z.enum(careLevelValues, { message: 'Care level is required' }),
+    category: z.enum(categoryValues, { message: 'Категорія є обов’язковою' }),
+    size: z.enum(sizeValues, { message: 'Розмір є обов’язковим' }),
+    condition: z.enum(conditionValues, { message: 'Стан є обов’язковим' }),
+    careLevel: z.enum(careLevelValues, { message: 'Рівень догляду є обов’язковим' }),
     care_level: z.enum(careLevelValues).optional(),
-    
-    // Location - required with normalization
     city: z
-      .string({ message: 'City is required' })
+      .string({ message: 'Місто є обов’язковим' })
       .trim()
-      .min(2, 'City must be at least 2 characters')
-      .max(50, 'City must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'City cannot be only spaces')
-      .refine(val => hasLetters(val), 'City name must contain at least one letter')
+      .min(2, 'Місто має містити щонайменше 2 символи')
+      .max(50, 'Місто має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Місто не може складатися лише з пробілів')
+      .refine(val => hasLetters(val), 'Назва міста має містити щонайменше одну літеру')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(normalizeCity),
-    
-    // Additional plant info
     genus: z
       .string()
       .trim()
-      .min(1, 'Genus is required')
-      .max(50, 'Genus must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Genus cannot be only spaces')
+      .min(1, 'Рід є обов’язковим')
+      .max(50, 'Рід має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Рід не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
     
     family: z
       .string()
       .trim()
-      .min(1, 'Family is required')
-      .max(50, 'Family must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Family cannot be only spaces')
+      .min(1, 'Родина є обов’язковою')
+      .max(50, 'Родина має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Родина не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
     
     commonName: z
       .string()
       .trim()
-      .min(1, 'Common name is required')
-      .max(100, 'Common name must be max 100 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Common name cannot be only spaces')
+      .min(1, 'Загальна назва є обов’язковою')
+      .max(100, 'Загальна назва має містити не більше 100 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Загальна назва не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
-    
-    // Plant detection API results
     plantResult: plantSourceSchema,
     
     primary: plantSourceSchema,
@@ -160,109 +150,90 @@ export const createAnnouncementSchema = z.object({
     photoResult: z.unknown().optional(),
     suggestion: z.unknown().optional(),
     result: z.unknown().optional(),
-    
-    // Description - with length and HTML sanitization
     description: z
       .string()
       .trim()
-      .min(10, 'Description must be at least 10 characters')
-      .max(1000, 'Description must be max 1000 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Description cannot be only spaces')
-      .refine(val => hasMinWords(val, 2), 'Description must contain at least 2 words')
+      .min(10, 'Опис має містити щонайменше 10 символів')
+      .max(1000, 'Опис має містити не більше 1000 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Опис не може складатися лише з пробілів')
+      .refine(val => hasMinWords(val, 2), 'Опис має містити щонайменше 2 слова')
       .transform(sanitizeHtml)
-      .refine(val => val.trim().length >= 10, 'Description must be at least 10 characters after sanitization (HTML removed)')
+      .refine(val => val.trim().length >= 10, 'Опис має містити щонайменше 10 символів після очищення (HTML видалено)')
       .optional(),
-    
-    // Photos with URL validation
-    photo: z.string().url('Invalid photo URL').min(1).optional(),
-    photoUrl: z.string().url('Invalid photo URL').optional(),
-    photoKey: z.string().regex(/^announcements\/[\w\-]+\/[\w\.\-]+$/, 'Invalid S3 key format').optional(),
+    photo: z.string().url('Некоректний URL фото').min(1).optional(),
+    photoUrl: z.string().url('Некоректний URL фото').optional(),
+    photoKey: z.string().regex(/^announcements\/[\w\-]+\/[\w\.\-]+$/, 'Некоректний формат ключа S3').optional(),
     
     photos: z
-      .array(z.string().url('Each photo must be a valid URL'))
-      .max(5, 'Maximum 5 photos allowed')
+      .array(z.string().url('Кожне фото має бути коректним URL'))
+      .max(5, 'Дозволено не більше 5 фото')
       .optional(),
     
-    coverPhoto: z.string().url('Cover photo must be a valid URL').optional(),
-    imageUrl: z.string().url('Invalid image URL').optional(),
+    coverPhoto: z.string().url('Обкладинка має бути коректним URL').optional(),
+    imageUrl: z.string().url('Некоректний URL зображення').optional(),
     
     images: z
-      .array(z.string().url('Each image must be a valid URL'))
-      .max(5, 'Maximum 5 images allowed')
+      .array(z.string().url('Кожне зображення має бути коректним URL'))
+      .max(5, 'Дозволено не більше 5 зображень')
       .optional(),
     
     photoBase64: z.string()
-      .regex(/^data:image\/(png|jpe?g|gif);base64,[A-Za-z0-9+\/=]+$/, 'Invalid base64 image format')
-      .max(5_242_880, 'Image too large (max 5MB)')
+      .regex(/^data:image\/(png|jpe?g|gif);base64,[A-Za-z0-9+\/=]+$/, 'Некоректний формат base64-зображення')
+      .max(5_242_880, 'Зображення завелике (максимум 5 МБ)')
       .optional(),
-    
-    // Additional tags with validation
     additionalTags: z
-      .array(z.string().min(1).max(30, 'Each tag max 30 characters').trim())
-      .max(10, 'Maximum 10 tags allowed')
-      .refine(arr => arr.length === 0 || arr.every(tag => tag.trim().length > 0), 'Tags cannot be empty')
+      .array(z.string().min(1).max(30, 'Кожен тег має містити не більше 30 символів').trim())
+      .max(10, 'Дозволено не більше 10 тегів')
+      .refine(arr => arr.length === 0 || arr.every(tag => tag.trim().length > 0), 'Теги не можуть бути порожніми')
       .optional(),
     
     additional_tags: z
       .array(z.string().min(1).max(30).trim())
       .max(10)
       .optional(),
-    
-    // Location details
     district: z
       .string()
       .trim()
-      .min(1, 'District is required')
-      .max(50, 'District must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'District cannot be only spaces')
+      .min(1, 'Район є обов’язковим')
+      .max(50, 'Район має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Район не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
-    
-    // Condition flags
     pestFree: z.boolean().optional(),
     pest_free: z.boolean().optional(),
     readyToExchange: z.boolean().optional(),
     ready_to_exchange: z.boolean().optional(),
-    
-    // Matching algorithm fields - required
-    wateringFreq: z.enum(wateringFreqValues, { message: 'Watering frequency is required' }),
-    lightReqs: z.enum(lightReqsValues, { message: 'Light requirements are required' }),
-    
-    // Optional matching fields
+    wateringFreq: z.enum(wateringFreqValues, { message: 'Частота поливу є обов’язковою' }),
+    lightReqs: z.enum(lightReqsValues, { message: 'Освітлення є обов’язковим' }),
     humidity: z.enum(humidityValues).optional(),
     toxicity: z.enum(toxicityValues).optional(),
     growthRate: z.enum(growthRateValues).optional(),
     hasOffspring: z.boolean().optional(),
-    
-    // Status and lifecycle
     status: z.enum(statusValues).optional(),
-    
-    
-    // Expiration - must be future date
     expiresAt: z
       .string()
       .datetime({ 
-        message: 'Must be ISO 8601 format (e.g., 2026-06-30T23:59:59Z)' 
+        message: 'Дата має бути у форматі ISO 8601 (наприклад, 2026-06-30T23:59:59Z)' 
       })
       .refine(
         (date) => validateDateInRange(date),
-        { message: 'Expiration date must be between today and 5 years from now' }
+        { message: 'Дата завершення має бути між сьогодні та наступними 5 роками' }
       )
       .nullable()
       .optional(),
   })
   .refine((data) => {
-    // P0: Plant data required - either direct or from API
     const hasDirect = Boolean(data.plantName || data.commonName || data.genus || data.family);
     const resultSources = [data.plantResult, data.primary, data.plant, data.photoResult, data.suggestion, data.result];
     const hasResult = hasPlantResult(resultSources);
     return hasDirect || hasResult;
   }, {
-    message: 'Plant identification required: provide plant name, common name, genus, family, or use plant detection API',
+    message: 'Потрібна ідентифікація рослини: вкажіть назву рослини, загальну назву, рід, родину або використайте API розпізнавання рослин',
     path: ['plantName'],
   })
   .refine((data) => !hasOfferCaseConflicts(data as Record<string, unknown>), {
-    message: 'offerType and offer_type, careLevel and care_level cannot have different values',
+    message: 'offerType і offer_type, careLevel і care_level не можуть мати різні значення',
     path: ['offerType'],
   }),
 });
@@ -272,9 +243,10 @@ export const updateAnnouncementSchema = z.object({
     plantName: z
       .string()
       .trim()
-      .min(1, 'Plant name is required')
-      .max(100, 'Plant name must be max 100 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Plant name cannot be only spaces')
+      .min(1, 'Назва рослини є обов’язковою')
+      .max(100, 'Назва рослини має містити не більше 100 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Назва рослини не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
     
@@ -290,37 +262,41 @@ export const updateAnnouncementSchema = z.object({
     city: z
       .string()
       .trim()
-      .min(2, 'City must be at least 2 characters')
-      .max(50, 'City must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'City cannot be only spaces')
-      .refine(val => hasLetters(val), 'City name must contain at least one letter')
+      .min(2, 'Місто має містити щонайменше 2 символи')
+      .max(50, 'Місто має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Місто не може складатися лише з пробілів')
+      .refine(val => hasLetters(val), 'Назва міста має містити щонайменше одну літеру')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(normalizeCity)
       .optional(),
     
     genus: z
       .string()
       .trim()
-      .min(1, 'Genus is required')
-      .max(50, 'Genus must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Genus cannot be only spaces')
+      .min(1, 'Рід є обов’язковим')
+      .max(50, 'Рід має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Рід не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
     
     family: z
       .string()
       .trim()
-      .min(1, 'Family is required')
-      .max(50, 'Family must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Family cannot be only spaces')
+      .min(1, 'Родина є обов’язковою')
+      .max(50, 'Родина має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Родина не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
     
     commonName: z
       .string()
       .trim()
-      .min(1, 'Common name is required')
-      .max(100, 'Common name must be max 100 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Common name cannot be only spaces')
+      .min(1, 'Загальна назва є обов’язковою')
+      .max(100, 'Загальна назва має містити не більше 100 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Загальна назва не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
     
@@ -334,35 +310,35 @@ export const updateAnnouncementSchema = z.object({
     description: z
       .string()
       .trim()
-      .min(10, 'Description must be at least 10 characters')
-      .max(1000, 'Description must be max 1000 characters')
-      .refine(val => !isWhitespaceOnly(val), 'Description cannot be only spaces')
-      .refine(val => hasMinWords(val, 2), 'Description must contain at least 2 words')
+      .min(10, 'Опис має містити щонайменше 10 символів')
+      .max(1000, 'Опис має містити не більше 1000 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Опис не може складатися лише з пробілів')
+      .refine(val => hasMinWords(val, 2), 'Опис має містити щонайменше 2 слова')
       .transform(sanitizeHtml)
-      .refine(val => val.trim().length >= 10, 'Description must be at least 10 characters after sanitization (HTML removed)')
+      .refine(val => val.trim().length >= 10, 'Опис має містити щонайменше 10 символів після очищення (HTML видалено)')
       .nullable()
       .optional(),
     
-    photo: z.string().url('Invalid photo URL').nullable().optional(),
-    photoUrl: z.string().url('Invalid photo URL').nullable().optional(),
-    photoKey: z.string().regex(/^announcements\/[\w\-]+\/[\w\.\-]+$/, 'Invalid S3 key format').nullable().optional(),
+    photo: z.string().url('Некоректний URL фото').nullable().optional(),
+    photoUrl: z.string().url('Некоректний URL фото').nullable().optional(),
+    photoKey: z.string().regex(/^announcements\/[\w\-]+\/[\w\.\-]+$/, 'Некоректний формат ключа S3').nullable().optional(),
     
     photos: z
-      .array(z.string().url('Each photo must be a valid URL'))
-      .max(5, 'Maximum 5 photos allowed')
+      .array(z.string().url('Кожне фото має бути коректним URL'))
+      .max(5, 'Дозволено не більше 5 фото')
       .optional(),
     
-    coverPhoto: z.string().url('Cover photo must be a valid URL').nullable().optional(),
-    imageUrl: z.string().url('Invalid image URL').nullable().optional(),
+    coverPhoto: z.string().url('Обкладинка має бути коректним URL').nullable().optional(),
+    imageUrl: z.string().url('Некоректний URL зображення').nullable().optional(),
     
     images: z
-      .array(z.string().url('Each image must be a valid URL'))
-      .max(5, 'Maximum 5 images allowed')
+      .array(z.string().url('Кожне зображення має бути коректним URL'))
+      .max(5, 'Дозволено не більше 5 зображень')
       .optional(),
     
     photoBase64: z.string()
-      .regex(/^data:image\/(png|jpe?g|gif);base64,[A-Za-z0-9+\/=]+$/, 'Invalid base64 image format')
-      .max(5_242_880, 'Image too large (max 5MB)')
+      .regex(/^data:image\/(png|jpe?g|gif);base64,[A-Za-z0-9+\/=]+$/, 'Некоректний формат base64-зображення')
+      .max(5_242_880, 'Зображення завелике (максимум 5 МБ)')
       .nullable()
       .optional(),
     
@@ -379,9 +355,10 @@ export const updateAnnouncementSchema = z.object({
     district: z
       .string()
       .trim()
-      .min(1, 'District is required')
-      .max(50, 'District must be max 50 characters')
-      .refine(val => !isWhitespaceOnly(val), 'District cannot be only spaces')
+      .min(1, 'Район є обов’язковим')
+      .max(50, 'Район має містити не більше 50 символів')
+      .refine(val => !isWhitespaceOnly(val), 'Район не може складатися лише з пробілів')
+      .refine(val => !hasDigits(val), 'Значення не може містити цифри')
       .transform(sanitizeHtml)
       .optional(),
     
@@ -403,21 +380,21 @@ export const updateAnnouncementSchema = z.object({
     expiresAt: z
       .string()
       .datetime({ 
-        message: 'Must be ISO 8601 format (e.g., 2026-06-30T23:59:59Z)' 
+        message: 'Дата має бути у форматі ISO 8601 (наприклад, 2026-06-30T23:59:59Z)' 
       })
       .refine(
         (date) => validateDateInRange(date),
-        { message: 'Expiration date must be between today and 5 years from now' }
+        { message: 'Дата завершення має бути між сьогодні та наступними 5 роками' }
       )
       .nullable()
       .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field must be provided',
+    message: 'Потрібно передати щонайменше одне поле',
     path: ['body'],
   })
   .refine((data) => !hasOfferCaseConflicts(data as Record<string, unknown>), {
-    message: 'offerType and offer_type, careLevel and care_level cannot have different values',
+    message: 'offerType і offer_type, careLevel і care_level не можуть мати різні значення',
     path: ['offerType'],
   }),
 });
@@ -432,11 +409,13 @@ export const searchAnnouncementSchema = z.object({
     city: z.string().trim().min(1).max(80).optional(),
     district: z.string().trim().min(1).max(80).optional(),
     offerType: z.enum(offerTypeValues).optional(),
-    status: z.enum(statusValues).optional(),
+    status: z.enum(searchStatusValues).optional(),
     plantName: z.string().trim().min(1).max(100).optional(),
+    userId: z.string().trim().min(1).max(100).optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),
     page: z.coerce.number().int().min(1).max(10_000).optional(),
     sortBy: z.enum(['createdAt', 'updatedAt', 'plantName']).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
   }),
 });
+

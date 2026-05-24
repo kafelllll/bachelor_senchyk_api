@@ -14,6 +14,20 @@ const normalizeString = (value: string | null | undefined): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const getProfileStats = async (userId: string) => {
+  const [activeAnnouncementsCount, totalAnnouncementsCount, ratingSummary] = await Promise.all([
+    announcementRepository.countActiveAnnouncements(userId),
+    announcementRepository.countAnnouncementsByUser(userId),
+    ratingService.getRatingsSummary(userId),
+  ]);
+
+  return {
+    activeAnnouncementsCount,
+    totalAnnouncementsCount,
+    ratingSummary,
+  };
+};
+
 export const getMyProfile = async (userId: string) => {
   const profile = await userRepository.findProfileByUserId(userId);
   if (!profile) {
@@ -117,6 +131,32 @@ export const updateMyProfile = async (userId: string, data: UpdateProfileInput) 
     trustLevel: trust.trustLevel,
     accountAgeDays,
     isAccountOlderThan7Days,
+    activeAnnouncementsCount,
+    totalAnnouncementsCount,
+  };
+};
+
+export const getUserProfile = async (userId: string) => {
+  const profile = await userRepository.findProfileByUserId(userId);
+  if (!profile) {
+    throw new Error('User not found');
+  }
+
+  const { activeAnnouncementsCount, totalAnnouncementsCount, ratingSummary } = await getProfileStats(userId);
+
+  return {
+    id: profile.id,
+    name: profile.name,
+    city: profile.city ?? null,
+    bio: profile.bio ?? null,
+    avatar: profile.avatar ?? null,
+    avatarUrl: profile.avatar ?? null,
+    createdAt: profile.createdAt,
+    lastActiveAt: profile.updatedAt,
+    updatedAt: profile.updatedAt,
+    emailVerified: profile.emailVerified,
+    isEmailVerified: profile.emailVerified,
+    ratingSummary,
     activeAnnouncementsCount,
     totalAnnouncementsCount,
   };

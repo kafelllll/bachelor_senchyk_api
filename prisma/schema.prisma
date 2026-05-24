@@ -73,6 +73,7 @@ model Announcement {
   updatedAt       DateTime @updatedAt
   messages        Message[]
   exchanges       Exchange[]
+  offeredInExchanges Exchange[] @relation("OfferedAnnouncement")
 }
 
 enum ExchangeStatus {
@@ -87,18 +88,23 @@ model Exchange {
   initiatorId    String
   receiverId     String
   announcementId String
+  offeredAnnouncementId String?
   status         ExchangeStatus @default(pending)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   completedAt    DateTime?
+  initiatorCompletedAt DateTime?
+  receiverCompletedAt  DateTime?
   initiator      User           @relation("ExchangeInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
   receiver       User           @relation("ExchangeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   announcement   Announcement   @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  offeredAnnouncement Announcement? @relation("OfferedAnnouncement", fields: [offeredAnnouncementId], references: [id], onDelete: SetNull)
   ratings        Rating[]
 
   @@index([initiatorId, receiverId])
   @@index([receiverId, initiatorId])
   @@index([announcementId])
+  @@index([offeredAnnouncementId])
   @@unique([initiatorId, receiverId, announcementId])
 }
 

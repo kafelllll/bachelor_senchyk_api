@@ -11,5 +11,4 @@ router.get('/', authenticate, validate(getMessagesSchema), getMessages);
 router.get('/conversations', authenticate, validate(getConversationsSchema), getConversations);
 router.get('/unread-count', authenticate, getUnreadCount);
 router.delete('/', authenticate, validate(deleteConversationSchema), deleteConversation);
-
 export default router;

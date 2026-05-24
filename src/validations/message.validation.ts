@@ -4,21 +4,21 @@ const isWhitespaceOnly = (value: string) => value.trim().length === 0;
 
 export const createMessageSchema = z.object({
   body: z.object({
-    receiverId: z.string().uuid('Receiver id must be a valid UUID'),
-    announcementId: z.string().uuid('Announcement id must be a valid UUID').nullable().optional(),
+    receiverId: z.string().uuid('ID отримувача має бути коректним UUID'),
+    announcementId: z.string().uuid('ID оголошення має бути коректним UUID').nullable().optional(),
     content: z
-      .string({ message: 'Message content is required' })
+      .string({ message: 'Текст повідомлення є обов’язковим' })
       .trim()
-      .min(1, 'Message content cannot be empty')
-      .max(2000, 'Message content must be at most 2000 characters')
-      .refine((value) => !isWhitespaceOnly(value), 'Message content cannot be only spaces'),
+      .min(1, 'Текст повідомлення не може бути порожнім')
+      .max(2000, 'Текст повідомлення має містити не більше 2000 символів')
+      .refine((value) => !isWhitespaceOnly(value), 'Текст повідомлення не може складатися лише з пробілів'),
   }),
 });
 
 export const getMessagesSchema = z.object({
   query: z.object({
-    userId: z.string().uuid('User id must be a valid UUID'),
-    announcementId: z.string().uuid('Announcement id must be a valid UUID').nullable().optional(),
+    userId: z.string().uuid('ID користувача має бути коректним UUID'),
+    announcementId: z.string().uuid('ID оголошення має бути коректним UUID').nullable().optional(),
     limit: z.coerce.number().int().min(1).max(200).optional(),
   }),
 });
@@ -31,7 +31,7 @@ export const getConversationsSchema = z.object({
 
 export const deleteConversationSchema = z.object({
   query: z.object({
-    userId: z.string().uuid('User id must be a valid UUID'),
-    announcementId: z.string().uuid('Announcement id must be a valid UUID').nullable().optional(),
+    userId: z.string().uuid('ID користувача має бути коректним UUID'),
+    announcementId: z.string().uuid('ID оголошення має бути коректним UUID').nullable().optional(),
   }),
 });
