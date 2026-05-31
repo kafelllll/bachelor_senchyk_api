@@ -10,3 +10,5 @@ reports/
 logs/
 
 /src/generated/prisma
+
+dist/

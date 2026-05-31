@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-plantmatch-api}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - plantmatch-api-network
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-plantmatch-api}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  app:
+    image: plantmatch-api:latest
+    container_name: plantmatch-api-app
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - plantmatch-api-network
+
+volumes:
+  postgres_data:
+
+networks:
+  plantmatch-api-network:
+    driver: bridge

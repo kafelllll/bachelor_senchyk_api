@@ -1,0 +1,105 @@
+name: Build & Deploy
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run migration safety check
+        run: npx --yes @flvmnt/pgfence analyze --ci --max-risk medium prisma/migrations/**/migration.sql
+
+  build:
+    needs: [migration-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Prisma Generate
+        run: npx prisma generate
+      - name: Build
+        run: npm run build
+      - name: Validate Docker build
+        run: docker build -t plantmatch-api:latest .
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build]
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate deploy host
+        run: |
+          if [ -z "$EC2_HOST" ]; then
+            echo "EC2_HOST secret is not set"
+            exit 1
+          fi
+
+      - name: Build Docker image
+        run: docker build -t plantmatch-api:latest .
+
+      - name: Save Docker image
+        run: docker save plantmatch-api:latest | gzip > plantmatch-api.tar.gz
+
+      - name: Write .env file
+        run: printf '%s' "${{ secrets.APP_ENV }}" > .env
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+
+      - name: Copy files to EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "mkdir -p /home/ubuntu/plantmatch-api"
+          scp -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no \
+            plantmatch-api.tar.gz \
+            ubuntu@$EC2_HOST:/home/ubuntu/plantmatch-api/plantmatch-api.tar.gz
+          scp -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no \
+            docker-compose.yml \
+            ubuntu@$EC2_HOST:/home/ubuntu/plantmatch-api/docker-compose.yml
+          scp -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no \
+            .env \
+            ubuntu@$EC2_HOST:/home/ubuntu/plantmatch-api/.env
+
+      - name: Deploy on EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ubuntu@$EC2_HOST << 'ENDSSH'
+            set -e
+            cd /home/ubuntu/plantmatch-api
+            
+            docker load < plantmatch-api.tar.gz
+            docker compose up -d --no-build --remove-orphans
+            docker image prune -a -f
+
+            rm -f plantmatch-api.tar.gz
+          ENDSSH
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/ec2_key.pem
