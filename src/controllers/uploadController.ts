@@ -14,7 +14,7 @@ type UploadRequest = Request & {
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-const sanitizeFileName = (baseName) => {
+const sanitizeFileName = (baseName: unknown): string => {
   const cleaned = String(baseName).replace(/[^a-zA-Z0-9._-]/g, '');
   return cleaned.length > 0 ? cleaned : 'file';
 };
