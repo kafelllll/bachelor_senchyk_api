@@ -76,7 +76,7 @@ jobs:
 
       - name: Copy files to EC2
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "mkdir -p /home/ubuntu/plantmatch-api"
+          ssh -T -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "mkdir -p /home/ubuntu/plantmatch-api"
           scp -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no \
             plantmatch-api.tar.gz \
             ubuntu@$EC2_HOST:/home/ubuntu/plantmatch-api/plantmatch-api.tar.gz
@@ -89,13 +89,26 @@ jobs:
 
       - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ubuntu@$EC2_HOST << 'ENDSSH'
+          ssh -T -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ubuntu@$EC2_HOST << 'ENDSSH'
             set -e
             cd /home/ubuntu/plantmatch-api
+
+            if ! command -v docker >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y ca-certificates curl gnupg
+              sudo install -m 0755 -d /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              sudo chmod a+r /etc/apt/keyrings/docker.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              sudo apt-get update
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            fi
+
+            sudo systemctl enable --now docker
             
-            docker load < plantmatch-api.tar.gz
-            docker compose up -d --no-build --remove-orphans
-            docker image prune -a -f
+            sudo docker load < plantmatch-api.tar.gz
+            sudo docker compose up -d --no-build --remove-orphans
+            sudo docker image prune -a -f
 
             rm -f plantmatch-api.tar.gz
           ENDSSH
