@@ -6,18 +6,6 @@ import * as tokenRepository from '../repositories/token.repository.js';
 
 let io: Server | null = null;
 
-const normalizeOrigins = () => {
-  const raw = process.env.FRONTEND_URL;
-  if (!raw) {
-    return '*';
-  }
-  const list = raw
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return list.length > 0 ? list : '*';
-};
-
 const extractToken = (authHeader?: string, authToken?: string) => {
   if (authToken && authToken.trim().length > 0) {
     return authToken.trim();
@@ -35,7 +23,7 @@ const extractToken = (authHeader?: string, authToken?: string) => {
 export const initSocketServer = (httpServer: HttpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: normalizeOrigins(),
+      origin: '*',
     },
   });
 
