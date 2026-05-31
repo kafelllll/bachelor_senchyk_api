@@ -6,7 +6,7 @@ COPY prisma ./prisma/
 RUN npm ci
 COPY . .
 RUN npx prisma generate
-RUN npm run build
+RUN npx tsc --project tsconfig.json --outDir dist && test -f dist/server.js
 
 FROM node:22-alpine
 RUN apk add --no-cache openssl
