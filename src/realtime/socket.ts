@@ -20,10 +20,24 @@ const extractToken = (authHeader?: string, authToken?: string) => {
   return '';
 };
 
-export const initSocketServer = (httpServer: HttpServer) => {
+export const initSocketServer = (httpServer: HttpServer, allowedOrigins: string[] = []) => {
   io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        const normalizedOrigin = origin.replace(/\/$/, '');
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(normalizedOrigin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error('CORS origin is not allowed'));
+      },
+      credentials: true,
     },
   });
 

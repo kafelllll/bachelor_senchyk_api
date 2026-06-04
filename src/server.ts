@@ -17,9 +17,35 @@ import { logger } from './utils/logger.js';
 import { initSocketServer } from './realtime/socket.js';
 
 const app = express();
-const PORT = 3000;
+const PORT = Number.parseInt(process.env.PORT || '3000', 10);
 
-app.use(cors());
+const resolveAllowedOrigins = () => {
+  return [
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_BASE_URL,
+    process.env.BACKEND_URL,
+  ]
+    .map((value) => value?.trim().replace(/\/$/, ''))
+    .filter((value): value is string => Boolean(value));
+};
+
+const allowedOrigins = resolveAllowedOrigins();
+const corsOriginHandler: cors.CorsOptions['origin'] = (origin, callback) => {
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  const normalizedOrigin = origin.replace(/\/$/, '');
+  if (allowedOrigins.length === 0 || allowedOrigins.includes(normalizedOrigin)) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error('CORS origin is not allowed'));
+};
+
+app.use(cors({ origin: corsOriginHandler, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(normalizeRequestStrings);
 
@@ -34,14 +60,22 @@ app.use('/exchanges', exchangeRoutes);
 app.use('/ratings', ratingRoutes);
 
 app.get('/', (req, res) => {
-  res.send('Працює на TypeScript!');
+  res.send('Works on TypeScript!');
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
 app.use(errorHandler);
 
 const server = createServer(app);
-initSocketServer(server);
+initSocketServer(server, allowedOrigins);
 
 server.listen(PORT, () => {
-  logger.info('Server started', { url: `http://localhost:${PORT}` });
+  logger.info('Server started', {
+    port: PORT,
+    backendUrl: process.env.BACKEND_URL || null,
+    allowedOrigins,
+  });
 });

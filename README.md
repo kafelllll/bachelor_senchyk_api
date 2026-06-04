@@ -49,6 +49,7 @@ cp .env.example .env
 (на Windows PowerShell: `Copy-Item .env.example .env`)
 
 2. Заповнити значення у `.env` (ключі, паролі, URL, SMTP, AWS).
+Для продакшн-деплою окремо перевірити `PORT`, `BACKEND_URL`, `FRONTEND_URL`, `DATABASE_URL`, SMTP та AWS змінні саме в середовищі деплою.
 
 3. Для тестів створити `.env.test` із шаблону:
 ```bash
@@ -79,4 +80,3 @@ npm test
 
 Примітка:
 - `test:integration` і `test:coverage` автоматично готують test DB і синхронізують схему (`prisma db push`).
-

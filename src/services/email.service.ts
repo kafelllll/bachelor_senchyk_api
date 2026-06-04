@@ -38,7 +38,7 @@ const escapeHtml = (value: string) => {
 };
 
 const getFrontendBaseUrl = () => {
-  const raw = process.env.FRONTEND_BASE_URL?.trim();
+  const raw = process.env.FRONTEND_URL?.trim() || process.env.FRONTEND_BASE_URL?.trim();
   if (!raw) return null;
   return raw.replace(/\/$/, '');
 };

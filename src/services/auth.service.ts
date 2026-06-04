@@ -39,8 +39,14 @@ const getBackendUrl = () => {
   return process.env.BACKEND_URL || 'http://localhost:3000';
 };
 
+const getFrontendBaseUrl = () => {
+  const raw = process.env.FRONTEND_URL?.trim() || process.env.FRONTEND_BASE_URL?.trim();
+  if (!raw) return '';
+  return raw.replace(/\/$/, '');
+};
+
 const getFrontendVerifyUrl = (token: string) => {
-  const frontendBase = process.env.FRONTEND_URL;
+  const frontendBase = getFrontendBaseUrl();
   if (!frontendBase) {
     return `${getBackendUrl()}/auth/verify-email?token=${token}`;
   }

@@ -54,9 +54,9 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 
   try {
     const { user, token: authToken } = await authService.verifyEmail(token);
-    const frontendBase = process.env.FRONTEND_URL;
+    const frontendBase = (process.env.FRONTEND_URL || process.env.FRONTEND_BASE_URL || '').trim();
     if (frontendBase) {
-      const redirectUrl = new URL(`${frontendBase}/verify-email`);
+      const redirectUrl = new URL(`${frontendBase.replace(/\/$/, '')}/verify-email`);
       redirectUrl.searchParams.set('token', token);
       res.redirect(302, redirectUrl.toString());
       return;
