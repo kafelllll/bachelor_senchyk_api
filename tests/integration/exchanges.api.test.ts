@@ -140,8 +140,22 @@ describe('Exchanges API integration', () => {
     expect(giverConfirm.status).toBe(200);
     expect(giverConfirm.body.exchange.status).toBe('completed');
 
+    const duplicateConfirm = await request(app)
+      .post(`/exchanges/${exchangeId}/confirm-completion`)
+      .set('Authorization', recvAuth)
+      .send({});
+    expect(duplicateConfirm.status).toBe(200);
+    expect(duplicateConfirm.body.exchange.status).toBe('completed');
+
     const completedExchange = await prisma.exchange.findUnique({ where: { id: exchangeId } });
     expect(completedExchange.status).toBe('completed');
+
+    const [requestedAfterCompletion, offeredAfterCompletion] = await Promise.all([
+      prisma.announcement.findUnique({ where: { id: requested.id } }),
+      prisma.announcement.findUnique({ where: { id: offered.id } }),
+    ]);
+    expect(requestedAfterCompletion.status).toBe('inactive');
+    expect(offeredAfterCompletion.status).toBe('inactive');
 
     const myExchanges = await request(app)
       .get('/exchanges/my')
