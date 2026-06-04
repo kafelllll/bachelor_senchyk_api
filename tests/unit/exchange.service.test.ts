@@ -42,7 +42,6 @@ const baseExchange = {
   initiatorId: 'user-1',
   receiverId: 'user-2',
   announcementId: 'ann-1',
-  offeredAnnouncementId: 'ann-offered-1',
   status: 'accepted',
   completedAt: null,
   initiatorCompletedAt: null,
@@ -91,28 +90,12 @@ describe('exchange.service unit', () => {
       receiverCompletedAt: new Date('2026-05-20T10:05:00.000Z'),
     });
 
-  const result = await exchangeService.confirmExchangeCompletion('user-2', 'ex-1');
+    const result = await exchangeService.confirmExchangeCompletion('user-2', 'ex-1');
 
     expect(exchangeRepo.confirmExchangeCompletion).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'ex-1', actor: 'receiver', completeNow: true }),
     );
     expect(announcementRepo.updateAnnouncementStatusById).toHaveBeenCalledWith('ann-1', 'inactive');
-    expect(announcementRepo.updateAnnouncementStatusById).toHaveBeenCalledWith('ann-offered-1', 'inactive');
-    expect(result.status).toBe('completed');
-  });
-
-  it('treats duplicate completion confirmation as idempotent', async () => {
-    exchangeRepo.findExchangeById.mockResolvedValue({
-      ...baseExchange,
-      status: 'completed',
-      completedAt: new Date('2026-05-20T10:05:00.000Z'),
-      initiatorCompletedAt: new Date('2026-05-20T10:00:00.000Z'),
-      receiverCompletedAt: new Date('2026-05-20T10:05:00.000Z'),
-    });
-
-    const result = await exchangeService.confirmExchangeCompletion('user-2', 'ex-1');
-
-    expect(exchangeRepo.confirmExchangeCompletion).not.toHaveBeenCalled();
     expect(result.status).toBe('completed');
   });
 

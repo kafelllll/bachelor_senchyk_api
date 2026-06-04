@@ -254,10 +254,11 @@ export const confirmExchangeCompletion = async (userId: string, exchangeId: stri
     throw new Error('Forbidden');
   }
 
+  if (exchange.status === 'completed') {
+    throw new Error('Exchange already completed');
+  }
+
   if (exchange.status !== 'accepted') {
-    if (exchange.status === 'completed') {
-      return exchange;
-    }
     throw new Error('Exchange must be accepted before completion confirmation');
   }
 
@@ -273,7 +274,7 @@ export const confirmExchangeCompletion = async (userId: string, exchangeId: stri
     actor === 'initiator' ? Boolean(exchange.initiatorCompletedAt) : Boolean(exchange.receiverCompletedAt);
 
   if (alreadyConfirmed) {
-    return exchange;
+    throw new Error('Completion already confirmed by this user');
   }
 
   const seekerConfirmed =
@@ -295,12 +296,7 @@ export const confirmExchangeCompletion = async (userId: string, exchangeId: stri
   });
 
   if (updated.status === 'completed') {
-    await Promise.all([
-      announcementRepository.updateAnnouncementStatusById(updated.announcementId, 'inactive'),
-      updated.offeredAnnouncementId
-        ? announcementRepository.updateAnnouncementStatusById(updated.offeredAnnouncementId, 'inactive')
-        : Promise.resolve(),
-    ]);
+    await announcementRepository.updateAnnouncementStatusById(updated.announcementId, 'inactive');
   }
 
   return updated;
@@ -500,3 +496,4 @@ export const isRatingRequiredForExchange = async (userId: string, exchangeId: st
   const existing = await ratingRepository.getRatingsByExchangeIdsForUser([exchangeId], userId);
   return existing.length === 0;
 };
+
